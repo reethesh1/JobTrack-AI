@@ -1,0 +1,83 @@
+.application-board {
+  margin-top: 30px;
+}
+
+.board-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.board-header h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+}
+
+.board-header p {
+  margin: 0;
+  color: #64748b;
+}
+
+.board-header button {
+  border: none;
+  padding: 11px 16px;
+  border-radius: 9px;
+  background: #111827;
+  color: white;
+  cursor: pointer;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(190px, 1fr));
+  gap: 14px;
+  overflow-x: auto;
+}
+
+.status-column {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  min-height: 300px;
+  padding: 12px;
+}
+
+.status-title {
+  padding: 4px 6px 12px;
+}
+
+.status-title h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.application-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.application-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 11px;
+  padding: 14px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.04);
+}
+
+.application-card h4 {
+  margin: 0 0 7px;
+  font-size: 15px;
+}
+
+.application-card p {
+  margin: 0 0 10px;
+  color: #475569;
+  font-size: 13px;
+}
+
+.application-card small {
+  color: #94a3b8;
+  font-size: 12px;
+}
