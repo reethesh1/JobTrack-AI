@@ -6,7 +6,7 @@ function Dashboard() {
   const [jobs, setJobs] = useState([]);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/jobs")
+    fetch("https://jobtrack-ai-1-a4ie.onrender.com/jobs")
       .then((response) => response.json())
       .then((data) => {
         setJobs(data);
