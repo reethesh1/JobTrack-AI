@@ -7,9 +7,24 @@ class JobApplication(Base):
     __tablename__ = "job_applications"
 
     id = Column(Integer, primary_key=True, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now()
+    )
+
     company = Column(String(100), nullable=False)
+
     job_title = Column(String(150), nullable=False)
+
     job_url = Column(String(500))
-    status = Column(String(50), nullable=False, default="Applied")
+
+    status = Column(
+        String(50),
+        nullable=False,
+        default="Applied"
+    )
+
     notes = Column(Text)
+
+    interview_date = Column(DateTime(timezone=True), nullable=True)

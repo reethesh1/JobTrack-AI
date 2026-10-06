@@ -1,0 +1,285 @@
+.calendar-page {
+  padding: 30px;
+}
+
+.calendar-header {
+  margin-bottom: 25px;
+}
+
+.calendar-header h1 {
+  margin: 0 0 7px;
+  font-size: 30px;
+  color: #111827;
+}
+
+.calendar-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 15px;
+}
+
+.calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(400px, 1fr) minmax(300px, 0.8fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.calendar-card,
+.selected-date-card,
+.upcoming-section {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.calendar-card {
+  padding: 20px;
+}
+
+.react-calendar {
+  width: 100%;
+  border: none;
+  font-family: inherit;
+}
+
+.react-calendar__navigation button {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.react-calendar__tile {
+  padding: 16px 8px;
+}
+
+.react-calendar__tile.has-interview {
+  position: relative;
+  font-weight: 700;
+}
+
+.react-calendar__tile.has-interview::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #111827;
+  position: absolute;
+  bottom: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.selected-date-card {
+  padding: 22px;
+  min-height: 300px;
+}
+
+.selected-date-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  align-items: flex-start;
+  margin-bottom: 25px;
+}
+
+.selected-date-header h2 {
+  margin: 0;
+  font-size: 19px;
+  color: #111827;
+}
+
+.selected-date-header span {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 6px 9px;
+  border-radius: 7px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.no-interviews {
+  text-align: center;
+  padding: 45px 20px;
+}
+
+.no-interviews-icon {
+  font-size: 30px;
+  margin-bottom: 10px;
+}
+
+.no-interviews h3 {
+  margin: 0 0 7px;
+  color: #334155;
+  font-size: 15px;
+}
+
+.no-interviews p {
+  margin: 0;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.interview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.calendar-interview {
+  display: flex;
+  gap: 15px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.interview-time {
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  min-width: 65px;
+}
+
+.interview-details h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: #111827;
+}
+
+.interview-details p {
+  margin: 0 0 7px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.interview-details span {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.upcoming-section {
+  margin-top: 20px;
+  padding: 22px;
+}
+
+.upcoming-header {
+  margin-bottom: 18px;
+}
+
+.upcoming-header h2 {
+  margin: 0 0 5px;
+  font-size: 19px;
+  color: #111827;
+}
+
+.upcoming-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.upcoming-interview {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 15px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.upcoming-date {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.upcoming-date strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.upcoming-date span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.upcoming-details h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.upcoming-details p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.upcoming-status {
+  padding: 6px 9px;
+  background: #f1f5f9;
+  border-radius: 7px;
+  color: #475569;
+  font-size: 11px;
+}
+
+.empty-upcoming {
+  padding: 30px;
+  text-align: center;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+}
+
+.empty-upcoming h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.empty-upcoming p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.calendar-message {
+  padding: 20px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.calendar-error {
+  padding: 15px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+  color: #b91c1c;
+}
+
+@media (max-width: 900px) {
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .calendar-page {
+    padding: 20px;
+  }
+
+  .upcoming-interview {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .upcoming-status {
+    width: fit-content;
+  }
+}

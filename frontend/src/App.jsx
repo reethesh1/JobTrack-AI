@@ -1,7 +1,9 @@
+import Calendar from "./components/Calendar";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
+import ApplicationBoard from "./components/ApplicationBoard";
 
 function Placeholder({ title }) {
   return (
@@ -16,13 +18,10 @@ function App() {
   return (
     <BrowserRouter>
       <div className="app">
-
         <Sidebar />
 
         <main className="main-content">
-
           <Routes>
-
             <Route
               path="/"
               element={<Navigate to="/dashboard" replace />}
@@ -35,17 +34,13 @@ function App() {
 
             <Route
               path="/applications"
-              element={<Placeholder title="Applications" />}
+              element={<ApplicationBoard />}
             />
 
-            <Route
-              path="/calendar"
-              element={<Placeholder title="Calendar" />}
-            />
 
             <Route
-              path="/resume-builder"
-              element={<Placeholder title="Resume Builder" />}
+               path="/calendar"
+               element={<Calendar />}
             />
 
             <Route
@@ -67,11 +62,8 @@ function App() {
               path="/profile"
               element={<Placeholder title="Profile" />}
             />
-
           </Routes>
-
         </main>
-
       </div>
     </BrowserRouter>
   );

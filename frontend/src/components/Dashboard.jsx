@@ -1,140 +1,146 @@
-
 import { useEffect, useState } from "react";
 import "./Dashboard.css";
 
+const API_URL = "https://jobtrack-ai-1-a4ie.onrender.com";
+
 function Dashboard() {
-  const [jobs, setJobs] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    this_month: 0,
+    applied: 0,
+    interviews: 0,
+    offers: 0,
+    rejected: 0,
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch("https://jobtrack-ai-1-a4ie.onrender.com/jobs")
-      .then((response) => response.json())
+    fetch(`${API_URL}/jobs/stats`)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Failed to fetch statistics");
+        }
+
+        return response.json();
+      })
       .then((data) => {
-        setJobs(data);
+        setStats(data);
+        setLoading(false);
       })
       .catch((error) => {
-        console.error("Error fetching jobs:", error);
+        console.error("Error fetching statistics:", error);
+        setError("Could not load dashboard statistics.");
+        setLoading(false);
       });
   }, []);
 
-  const totalApplications = jobs.length;
-
-  const appliedCount = jobs.filter(
-    (job) => job.status.toLowerCase() === "applied"
-  ).length;
-
-  const interviewCount = jobs.filter(
-    (job) => job.status.toLowerCase() === "interview"
-  ).length;
-
-  const offerCount = jobs.filter(
-    (job) => job.status.toLowerCase() === "offer"
-  ).length;
+  const statCards = [
+    {
+      title: "Total Applications",
+      value: stats.total,
+      description: "All applications",
+    },
+    {
+      title: "This Month",
+      value: stats.this_month,
+      description: "Applications this month",
+    },
+    {
+      title: "Applied",
+      value: stats.applied,
+      description: "Currently applied",
+    },
+    {
+      title: "Interviews",
+      value: stats.interviews,
+      description: "Interview stage",
+    },
+    {
+      title: "Offers",
+      value: stats.offers,
+      description: "Offers received",
+    },
+    {
+      title: "Rejected",
+      value: stats.rejected,
+      description: "Applications rejected",
+    },
+  ];
 
   return (
-    <div className="dashboard">
-
-      {/* Header */}
+    <section className="dashboard">
       <div className="dashboard-header">
         <div>
-          <h1>Good morning 👋</h1>
+          <h1>JobTrack AI</h1>
           <p>
-            Track your internship applications and stay organised.
+            Track your internship applications and stay organized.
           </p>
         </div>
-
-        <button className="add-job-button">
-          + Add Application
-        </button>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="stats-grid">
-
-        <div className="stat-card">
-          <div className="stat-icon">📋</div>
-          <div>
-            <p>Total Applications</p>
-            <h2>{totalApplications}</h2>
-          </div>
+      {loading && (
+        <div className="dashboard-message">
+          Loading dashboard...
         </div>
+      )}
 
-        <div className="stat-card">
-          <div className="stat-icon">📨</div>
-          <div>
-            <p>Applied</p>
-            <h2>{appliedCount}</h2>
-          </div>
+      {error && (
+        <div className="dashboard-error">
+          {error}
         </div>
+      )}
 
-        <div className="stat-card">
-          <div className="stat-icon">🎯</div>
-          <div>
-            <p>Interviews</p>
-            <h2>{interviewCount}</h2>
-          </div>
+      {!loading && !error && (
+        <div className="stats-grid">
+          {statCards.map((card) => (
+            <div className="stat-card" key={card.title}>
+              <div className="stat-card-content">
+                <p className="stat-title">{card.title}</p>
+
+                <h2>{card.value}</h2>
+
+                <span>{card.description}</span>
+              </div>
+            </div>
+          ))}
         </div>
+      )}
 
-        <div className="stat-card">
-          <div className="stat-icon">🎉</div>
-          <div>
-            <p>Offers</p>
-            <h2>{offerCount}</h2>
-          </div>
-        </div>
-
-      </div>
-
-      {/* Recent Applications */}
       <div className="dashboard-section">
-
         <div className="section-header">
           <div>
-            <h2>Recent Applications</h2>
-            <p>Your latest job applications</p>
+            <h2>Application Overview</h2>
+            <p>
+              Keep track of where your applications currently stand.
+            </p>
           </div>
-
-          <button className="view-all-button">
-            View All
-          </button>
         </div>
 
-        {jobs.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">📂</div>
-
-            <h3>No applications yet</h3>
-
-            <p>
-              Start tracking your internship applications by
-              adding your first application.
-            </p>
-
-            <button className="add-first-button">
-              + Add Your First Application
-            </button>
+        <div className="overview-card">
+          <div className="overview-row">
+            <span>Applied</span>
+            <strong>{stats.applied}</strong>
           </div>
-        ) : (
-          <div className="applications-list">
-            {jobs.slice(-5).reverse().map((job) => (
-              <div className="application-row" key={job.id}>
 
-                <div>
-                  <h3>{job.company}</h3>
-                  <p>{job.job_title}</p>
-                </div>
-
-                <span className="status-badge">
-                  {job.status}
-                </span>
-
-              </div>
-            ))}
+          <div className="overview-row">
+            <span>Interviews</span>
+            <strong>{stats.interviews}</strong>
           </div>
-        )}
 
+          <div className="overview-row">
+            <span>Offers</span>
+            <strong>{stats.offers}</strong>
+          </div>
+
+          <div className="overview-row">
+            <span>Rejected</span>
+            <strong>{stats.rejected}</strong>
+          </div>
+        </div>
       </div>
-
-    </div>
+    </section>
   );
 }
 
