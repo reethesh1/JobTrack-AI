@@ -14,9 +14,7 @@ class JobApplication(Base):
     )
 
     company = Column(String(100), nullable=False)
-
     job_title = Column(String(150), nullable=False)
-
     job_url = Column(String(500))
 
     status = Column(
@@ -26,5 +24,3 @@ class JobApplication(Base):
     )
 
     notes = Column(Text)
-
-    interview_date = Column(DateTime(timezone=True), nullable=True)

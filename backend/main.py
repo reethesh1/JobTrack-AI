@@ -6,8 +6,8 @@ from app import models
 from app.models import JobApplication
 from app.schemas import JobCreate
 
-# Create database tables
 Base.metadata.create_all(bind=engine)
+
 
 app = FastAPI(title="JobTrack AI")
 
