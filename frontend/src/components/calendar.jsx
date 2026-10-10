@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import CalendarComponent from "react-calendar";
 import "react-calendar/dist/Calendar.css";
-import "./Calendar.css";
+import "./calendar.css";
 
 const API_URL = "https://jobtrack-ai-1-a4ie.onrender.com";
 
