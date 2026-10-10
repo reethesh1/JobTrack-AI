@@ -1,15 +1,21 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
+
 from app.database import Base, engine, SessionLocal
 from app import models
 from app.models import JobApplication
 from app.schemas import JobCreate
 
+
+# Create database tables if they do not already exist
 Base.metadata.create_all(bind=engine)
 
 
+# Initialize FastAPI
 app = FastAPI(title="JobTrack AI")
+
 
 # Allow frontend connections
 app.add_middleware(
@@ -29,6 +35,8 @@ app.add_middleware(
 def root():
     return {"message": "JobTrack AI backend is running"}
 
+
+# Get application statistics
 @app.get("/jobs/stats")
 def get_job_stats():
     db = SessionLocal()
@@ -36,7 +44,11 @@ def get_job_stats():
     try:
         jobs = db.query(JobApplication).all()
 
+        now = datetime.now(timezone.utc)
+
         stats = {
+            "total": len(jobs),
+            "this_month": 0,
             "applied": 0,
             "interviews": 0,
             "offers": 0,
@@ -48,12 +60,27 @@ def get_job_stats():
 
             if status == "applied":
                 stats["applied"] += 1
+
             elif status in ["interview", "interviews"]:
                 stats["interviews"] += 1
-            elif status == "offer":
+
+            elif status in ["offer", "offers", "offer received"]:
                 stats["offers"] += 1
+
             elif status == "rejected":
                 stats["rejected"] += 1
+
+            if job.created_at:
+                created_at = job.created_at
+
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=timezone.utc)
+
+                if (
+                    created_at.year == now.year
+                    and created_at.month == now.month
+                ):
+                    stats["this_month"] += 1
 
         return stats
 
@@ -176,7 +203,9 @@ def delete_job(job_id: int):
         db.delete(existing_job)
         db.commit()
 
-        return {"message": "Job application deleted successfully"}
+        return {
+            "message": "Job application deleted successfully"
+        }
 
     finally:
         db.close()
