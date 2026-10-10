@@ -1,72 +1,43 @@
-import Calendar from "./components/calendar";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import "./App.css";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
 import ApplicationBoard from "./components/ApplicationBoard";
+import Calendar from "./components/calendar";
+import ATSScorer from "./components/ATSScorer";
+import {
+  Analytics,
+  Profile,
+  ResumeBuilder,
+  Settings,
+} from "./components/UtilityPages";
+import "./App.css";
 
-function Placeholder({ title }) {
+function AppLayout() {
   return (
-    <div>
-      <h1>{title}</h1>
-      <p>This page is currently under development.</p>
+    <div className="app">
+      <Sidebar />
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/applications" element={<ApplicationBoard />} />
+          <Route path="/calendar" element={<Calendar />} />
+          <Route path="/resume-builder" element={<ResumeBuilder />} />
+          <Route path="/ats-scorer" element={<ATSScorer />} />
+          <Route path="/analytics" element={<Analytics />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </main>
     </div>
   );
 }
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
-      <div className="app">
-        <Sidebar />
-
-        <main className="main-content">
-          <Routes>
-            <Route
-              path="/"
-              element={<Navigate to="/dashboard" replace />}
-            />
-
-            <Route
-              path="/dashboard"
-              element={<Dashboard />}
-            />
-
-            <Route
-              path="/applications"
-              element={<ApplicationBoard />}
-            />
-
-
-            <Route
-               path="/calendar"
-               element={<Calendar />}
-            />
-
-            <Route
-              path="/ats-scorer"
-              element={<Placeholder title="ATS Scorer" />}
-            />
-
-            <Route
-              path="/analytics"
-              element={<Placeholder title="Analytics" />}
-            />
-
-            <Route
-              path="/settings"
-              element={<Placeholder title="Settings" />}
-            />
-
-            <Route
-              path="/profile"
-              element={<Placeholder title="Profile" />}
-            />
-          </Routes>
-        </main>
-      </div>
+      <AppLayout />
     </BrowserRouter>
   );
 }
-
-export default App;
