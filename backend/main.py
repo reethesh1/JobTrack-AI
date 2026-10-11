@@ -111,6 +111,10 @@ def get_jobs():
         db.close()
 
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
 # Create a job application
 @app.post("/jobs")
 def create_job(job: JobCreate):
