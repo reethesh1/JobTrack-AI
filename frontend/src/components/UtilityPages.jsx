@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../lib/api";
+import { API_URL, apiRequest } from "../lib/api";
 import "./UtilityPages.css";
 
 const emptyProfile = {
