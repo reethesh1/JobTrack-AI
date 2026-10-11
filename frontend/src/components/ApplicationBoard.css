@@ -212,3 +212,126 @@
   font-size: 12px;
   font-weight: 600;
 }
+/* Search, filter, and sorting toolbar */
+.application-toolbar {
+display: grid;
+grid-template-columns: minmax(220px, 2fr) minmax(150px, 1fr) minmax(170px, 1fr);
+gap: 14px;
+margin-bottom: 24px;
+padding: 18px;
+background: #ffffff;
+border: 1px solid #e5e7eb;
+border-radius: 14px;
+box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+.search-input,
+.filter-select,
+.sort-select {
+width: 100%;
+min-width: 0;
+box-sizing: border-box;
+padding: 11px 13px;
+border: 1px solid #cbd5e1;
+border-radius: 9px;
+background: #ffffff;
+color: #1e293b;
+font-family: inherit;
+font-size: 14px;
+outline: none;
+transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-input::placeholder {
+color: #94a3b8;
+}
+
+.search-input:focus,
+.filter-select:focus,
+.sort-select:focus {
+border-color: #6366f1;
+box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+/* Responsive toolbar */
+@media (max-width: 900px) {
+.application-toolbar {
+grid-template-columns: 1fr 1fr;
+}
+
+.search-input {
+grid-column: 1 / -1;
+}
+}
+
+@media (max-width: 520px) {
+.application-toolbar {
+grid-template-columns: 1fr;
+padding: 14px;
+}
+
+.search-input {
+grid-column: auto;
+}
+
+.board-header {
+align-items: flex-start;
+gap: 14px;
+flex-direction: column;
+}
+}
+/* Application card enhancements */
+.application-card {
+transition: transform 0.2s ease, box-shadow 0.2s ease,
+border-color 0.2s ease;
+overflow-wrap: anywhere;
+}
+
+.application-card:hover {
+transform: translateY(-3px);
+border-color: #c7d2fe;
+box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+}
+
+.application-card h4 {
+color: #0f172a;
+line-height: 1.4;
+overflow-wrap: anywhere;
+}
+
+.application-card p {
+line-height: 1.5;
+overflow-wrap: anywhere;
+}
+
+.status-column {
+transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.status-column:hover {
+border-color: #cbd5e1;
+}
+
+.status-title {
+display: flex;
+align-items: center;
+justify-content: space-between;
+}
+
+.status-title h3 {
+color: #334155;
+letter-spacing: 0.2px;
+}
+
+.card-actions button {
+transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.card-actions button:hover {
+transform: translateY(-1px);
+}
+
+.card-actions button:focus-visible {
+outline: 2px solid #6366f1;
+outline-offset: 2px;
+}

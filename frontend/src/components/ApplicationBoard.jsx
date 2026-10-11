@@ -26,6 +26,9 @@ function ApplicationBoard() {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [sortBy, setSortBy] = useState("newest");
 
   // Load applications
   const fetchApplications = async () => {
@@ -46,6 +49,33 @@ function ApplicationBoard() {
   useEffect(() => {
     fetchApplications();
   }, []);
+  const filteredApplications = applications
+  .filter((application) => {
+    const search = searchTerm.toLowerCase().trim();
+
+    const matchesSearch =
+      application.company?.toLowerCase().includes(search) ||
+      application.job_title?.toLowerCase().includes(search);
+
+    const matchesStatus =
+      statusFilter === "All" ||
+      application.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
+  })
+  .sort((a, b) => {
+    if (sortBy === "company") {
+      return (a.company || "").localeCompare(b.company || "");
+    }
+
+    if (sortBy === "oldest") {
+      return new Date(a.created_at || 0) -
+        new Date(b.created_at || 0);
+    }
+
+    return new Date(b.created_at || 0) -
+      new Date(a.created_at || 0);
+  });
 
   // Handle changes to form fields
   const handleChange = (event) => {
@@ -282,6 +312,41 @@ function ApplicationBoard() {
         <p className="form-error">{error}</p>
       )}
 
+      {!loading && (
+  <div className="application-toolbar">
+    <input
+      type="text"
+      placeholder="Search by company or job title..."
+      value={searchTerm}
+      onChange={(event) => setSearchTerm(event.target.value)}
+      className="search-input"
+    />
+
+    <select
+      value={statusFilter}
+      onChange={(event) => setStatusFilter(event.target.value)}
+      className="filter-select"
+    >
+      <option value="All">All Statuses</option>
+      {statuses.map((status) => (
+        <option key={status} value={status}>
+          {status}
+        </option>
+      ))}
+    </select>
+
+    <select
+      value={sortBy}
+      onChange={(event) => setSortBy(event.target.value)}
+      className="sort-select"
+    >
+      <option value="newest">Newest First</option>
+      <option value="oldest">Oldest First</option>
+      <option value="company">Company Name (A–Z)</option>
+    </select>
+  </div>
+)}
+
       {loading && <p>Loading applications...</p>}
 
       {!loading && !error && (
@@ -291,53 +356,61 @@ function ApplicationBoard() {
               <div className="status-title">
                 <h3>{status}</h3>
               </div>
-
               <div className="application-list">
-                {applications
-                  .filter(
-                    (application) => application.status === status
-                  )
-                  .map((application) => (
-                    <div
-                      className="application-card"
-                      key={application.id}
-                    >
-                      <h4>{application.company}</h4>
-                      <p>{application.job_title}</p>
+  {filteredApplications.filter(
+    (application) => application.status === status
+  ).length === 0 ? (
+    <p className="empty-state">
+      {searchTerm || statusFilter !== "All"
+        ? "No matching applications."
+        : "No applications here yet."}
+    </p>
+  ) : (
+    filteredApplications
+      .filter((application) => application.status === status)
+      .map((application) => (
+        <div
+          className="application-card"
+          key={application.id}
+        >
+          <h4>{application.company}</h4>
+          <p>{application.job_title}</p>
 
-                      {application.job_url && (
-                        <a
-                          href={application.job_url}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          View Job
-                        </a>
-                      )}
+          {application.job_url && (
+            <a
+              href={application.job_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View Job
+            </a>
+          )}
 
-                      {application.notes && (
-                        <small>{application.notes}</small>
-                      )}
+          {application.notes && (
+            <small>{application.notes}</small>
+          )}
 
-                      <div className="card-actions">
-                        <button
-                          className="edit-button"
-                          onClick={() => handleEdit(application)}
-                        >
-                          Edit
-                        </button>
+          <div className="card-actions">
+            <button
+              className="edit-button"
+              onClick={() => handleEdit(application)}
+            >
+              Edit
+            </button>
 
-                        <button
-                          className="delete-button"
-                          onClick={() => handleDelete(application.id)}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+            <button
+              className="delete-button"
+              onClick={() => handleDelete(application.id)}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      ))
+  )}
+</div>
+
               </div>
-            </div>
           ))}
         </div>
       )}
