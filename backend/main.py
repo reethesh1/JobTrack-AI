@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 from app.database import Base, engine, SessionLocal
 from app import models
-from app.models import JobApplication
+from app.models import JobApplication,UserProfile
 from app.schemas import JobCreate
 
 
@@ -209,6 +209,73 @@ def delete_job(job_id: int):
 
         return {
             "message": "Job application deleted successfully"
+        }
+
+    finally:
+        db.close()
+        
+
+# Get the saved profile
+@app.get("/profile")
+def get_profile():
+    db = SessionLocal()
+
+    try:
+        profile = db.query(UserProfile).first()
+
+        if profile is None:
+            return {
+                "fullName": "",
+                "email": "",
+                "targetRole": "",
+                "location": "",
+                "linkedin": "",
+                "portfolio": "",
+            }
+
+        return {
+            "fullName": profile.full_name,
+            "email": profile.email,
+            "targetRole": profile.target_role,
+            "location": profile.location,
+            "linkedin": profile.linkedin,
+            "portfolio": profile.portfolio,
+        }
+
+    finally:
+        db.close()
+
+
+# Save or update the profile
+@app.post("/profile")
+def save_profile(data: dict):
+    db = SessionLocal()
+
+    try:
+        profile = db.query(UserProfile).first()
+
+        if profile is None:
+            profile = UserProfile()
+            db.add(profile)
+
+        profile.full_name = data.get("fullName", "")
+        profile.email = data.get("email", "")
+        profile.target_role = data.get("targetRole", "")
+        profile.location = data.get("location", "")
+        profile.linkedin = data.get("linkedin", "")
+        profile.portfolio = data.get("portfolio", "")
+
+        db.commit()
+        db.refresh(profile)
+
+        return {
+            "message": "Profile saved successfully",
+            "fullName": profile.full_name,
+            "email": profile.email,
+            "targetRole": profile.target_role,
+            "location": profile.location,
+            "linkedin": profile.linkedin,
+            "portfolio": profile.portfolio,
         }
 
     finally:

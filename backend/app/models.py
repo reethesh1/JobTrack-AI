@@ -24,3 +24,14 @@ class JobApplication(Base):
     )
 
     notes = Column(Text)
+    
+class UserProfile(Base):
+    __tablename__ = "user_profiles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    full_name = Column(String(150), nullable=False, default="")
+    email = Column(String(255), nullable=False, default="")
+    target_role = Column(String(150), nullable=False, default="")
+    location = Column(String(150), nullable=False, default="")
+    linkedin = Column(String(500), nullable=False, default="")
+    portfolio = Column(String(500), nullable=False, default="")    
