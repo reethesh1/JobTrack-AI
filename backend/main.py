@@ -1,5 +1,12 @@
-from fastapi import FastAPI, HTTPException
+from io import BytesIO
+from pathlib import Path
+
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from pypdf import PdfReader
+from docx import Document
+from pydantic import BaseModel
+import httpx
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 
@@ -15,6 +22,10 @@ Base.metadata.create_all(bind=engine)
 
 # Initialize FastAPI
 app = FastAPI(title="JobTrack AI")
+# Request format for AI resume reviews
+class AIReviewRequest(BaseModel):
+    resume_text: str
+    job_description: str
 
 
 # Allow frontend connections
@@ -280,3 +291,161 @@ def save_profile(data: dict):
 
     finally:
         db.close()
+        
+# Extract text from uploaded PDF or DOCX resumes
+@app.post("/ats/extract-resume")
+async def extract_resume(file: UploadFile = File(...)):
+    filename = file.filename or ""
+    extension = Path(filename).suffix.lower()
+
+    if extension not in {".pdf", ".docx"}:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Please upload a PDF or DOCX resume.",
+        )
+
+    content = await file.read()
+
+    if not content:
+        raise HTTPException(
+            status_code=400,
+            detail="The uploaded file is empty.",
+        )
+
+    try:
+        if extension == ".pdf":
+            reader = PdfReader(BytesIO(content))
+
+            if reader.is_encrypted:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Password-protected PDFs are not supported.",
+                )
+
+            extracted_text = "\n".join(
+                page.extract_text() or ""
+                for page in reader.pages
+            )
+
+        else:
+            document = Document(BytesIO(content))
+
+            paragraphs = [
+                paragraph.text
+                for paragraph in document.paragraphs
+                if paragraph.text.strip()
+            ]
+
+            extracted_text = "\n".join(paragraphs)
+
+        if not extracted_text.strip():
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "No readable text was found. The document may be "
+                    "scanned or image-based."
+                ),
+            )
+
+        return {
+            "filename": filename,
+            "text": extracted_text.strip(),
+            "characters": len(extracted_text.strip()),
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not read this document. Please check the file and try again.",
+        )
+
+    finally:
+        await file.close()
+
+# AI-powered resume review using local Ollama
+@app.post("/ats/ai-review")
+async def ai_resume_review(data: AIReviewRequest):
+    resume_text = data.resume_text.strip()
+    job_description = data.job_description.strip()
+
+    if not resume_text or not job_description:
+        raise HTTPException(
+            status_code=400,
+            detail="Resume text and job description are required."
+        )
+
+    prompt = f"""
+You are an experienced AI career assistant helping candidates improve
+their resumes for specific job opportunities.
+
+Analyze the resume against the job description below.
+
+RESUME:
+{resume_text}
+
+JOB DESCRIPTION:
+{job_description}
+
+Provide your review using these sections:
+
+1. OVERALL ASSESSMENT
+Explain how relevant the resume is to this role.
+
+2. MATCHING SKILLS
+List skills and experience demonstrated in the resume that match
+the job description.
+
+3. MISSING OR UNDERDEMONSTRATED SKILLS
+Identify relevant requirements that the resume does not clearly
+demonstrate. Do not assume the candidate has skills they haven't listed.
+
+4. RESUME IMPROVEMENTS
+Give specific, practical suggestions to improve the resume for this role.
+
+5. KEYWORD SUGGESTIONS
+Suggest relevant keywords from the job description that the candidate
+could include if they genuinely have the corresponding skills or experience.
+
+Be honest, specific, constructive, and concise.
+Do not invent qualifications or experience.
+"""
+
+    try:
+        async with httpx.AsyncClient(timeout=180.0) as client:
+            response = await client.post(
+                "http://127.0.0.1:11434/api/generate",
+                json={
+                    "model": "qwen2.5:3b",
+                    "prompt": prompt,
+                    "stream": False
+                }
+            )
+
+        response.raise_for_status()
+        result = response.json()
+
+        return {
+            "review": result.get("response", "").strip(),
+            "model": "qwen2.5:3b"
+        }
+
+    except httpx.ConnectError:
+        raise HTTPException(
+            status_code=503,
+            detail="Ollama is unavailable. Make sure Ollama is running on this computer."
+        )
+
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail="The AI review took too long. Please try again."
+        )
+
+    except httpx.HTTPStatusError:
+        raise HTTPException(
+            status_code=502,
+            detail="Ollama returned an error while generating the review."
+        )
