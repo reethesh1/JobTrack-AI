@@ -25,6 +25,8 @@ class JobApplication(Base):
 
     notes = Column(Text)
     
+    interview_date = Column(DateTime(timezone=True), nullable=True)
+    
 class UserProfile(Base):
     __tablename__ = "user_profiles"
 

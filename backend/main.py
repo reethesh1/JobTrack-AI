@@ -15,6 +15,7 @@ from app.database import Base, engine, SessionLocal
 from app import models
 from app.models import JobApplication,UserProfile
 from app.schemas import JobCreate
+from sqlalchemy import text
 
 
 # Ollama configuration. Defaults are suitable for local development.
@@ -31,6 +32,16 @@ OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 # Create database tables if they do not already exist
 Base.metadata.create_all(bind=engine)
 
+
+# Safely add interview_date to existing PostgreSQL databases.
+# Existing application records are preserved.
+with engine.begin() as connection:
+    connection.execute(
+        text("""
+            ALTER TABLE job_applications
+            ADD COLUMN IF NOT EXISTS interview_date TIMESTAMP WITH TIME ZONE
+        """)
+    )
 
 # Initialize FastAPI
 app = FastAPI(title="JobTrack AI")
@@ -110,6 +121,30 @@ def get_job_stats():
     finally:
         db.close()
 
+
+
+# Convert a job application into an API response.
+def serialize_job(job: JobApplication):
+    return {
+        "id": job.id,
+        "company": job.company,
+        "job_title": job.job_title,
+        "job_url": job.job_url,
+        "status": job.status,
+        "notes": job.notes,
+        "interview_date": (
+            job.interview_date.isoformat()
+            if job.interview_date
+            else None
+        ),
+        "created_at": (
+            job.created_at.isoformat()
+            if job.created_at
+            else None
+        ),
+    }
+
+
 # Get all job applications
 @app.get("/jobs")
 def get_jobs():
@@ -117,18 +152,7 @@ def get_jobs():
 
     try:
         jobs = db.query(JobApplication).all()
-
-        return [
-            {
-                "id": job.id,
-                "company": job.company,
-                "job_title": job.job_title,
-                "job_url": job.job_url,
-                "status": job.status,
-                "notes": job.notes,
-            }
-            for job in jobs
-        ]
+        return [serialize_job(job) for job in jobs]
 
     finally:
         db.close()
@@ -137,6 +161,7 @@ def get_jobs():
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
 
 # Create a job application
 @app.post("/jobs")
@@ -150,20 +175,18 @@ def create_job(job: JobCreate):
             job_url=job.job_url,
             status=job.status,
             notes=job.notes,
+            interview_date=job.interview_date,
         )
 
         db.add(new_job)
         db.commit()
         db.refresh(new_job)
 
-        return {
-            "id": new_job.id,
-            "company": new_job.company,
-            "job_title": new_job.job_title,
-            "job_url": new_job.job_url,
-            "status": new_job.status,
-            "notes": new_job.notes,
-        }
+        return serialize_job(new_job)
+
+    except Exception:
+        db.rollback()
+        raise
 
     finally:
         db.close()
@@ -192,22 +215,22 @@ def update_job(job_id: int, job: JobCreate):
         existing_job.job_url = job.job_url
         existing_job.status = job.status
         existing_job.notes = job.notes
+        existing_job.interview_date = job.interview_date
 
         db.commit()
         db.refresh(existing_job)
 
-        return {
-            "id": existing_job.id,
-            "company": existing_job.company,
-            "job_title": existing_job.job_title,
-            "job_url": existing_job.job_url,
-            "status": existing_job.status,
-            "notes": existing_job.notes,
-        }
+        return serialize_job(existing_job)
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        db.rollback()
+        raise
 
     finally:
         db.close()
-
 
 # Delete a job application
 @app.delete("/jobs/{job_id}")
