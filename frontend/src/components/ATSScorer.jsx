@@ -5,12 +5,53 @@ import "./ATSScorer.css";
 const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 const STOP_WORDS = new Set([
-  "a", "an", "and", "are", "as", "at", "be", "by", "for",
-  "from", "has", "have", "in", "is", "it", "of", "on", "or",
-  "our", "that", "the", "their", "this", "to", "with", "will",
-  "you", "your", "we", "who", "work", "working", "experience",
-  "ability", "skills", "skill", "role", "job", "candidate",
+  "a", "about", "an", "and", "are", "as", "at", "be", "been",
+  "being", "but", "by", "can", "candidate", "could", "for", "from",
+  "had", "has", "have", "having", "he", "her", "here", "his", "how",
+  "i", "if", "in", "into", "is", "it", "its", "may", "might", "must",
+  "of", "on", "or", "our", "ours", "she", "should", "so", "such",
+  "than", "that", "the", "their", "them", "then", "there", "these",
+  "they", "this", "those", "to", "us", "was", "we", "were", "what",
+  "when", "where", "which", "who", "will", "with", "would", "you",
+  "your", "yours", "work", "working", "experience", "ability", "skills",
+  "skill", "role", "job", "responsibilities", "responsibility", "required",
+  "requirements", "preferred", "including", "include", "using", "use",
 ]);
+
+// Multi-word technical terms count as a single keyword, rather than inflating
+// the score by counting every word in the same phrase separately.
+const KEYWORD_PHRASES = [
+  "artificial intelligence", "machine learning", "deep learning",
+  "natural language processing", "computer vision", "large language model",
+  "large language models", "generative ai", "generative artificial intelligence",
+  "data science", "data analysis",
+  "data engineering", "data visualization", "statistical analysis",
+  "neural network", "neural networks", "predictive modeling",
+  "feature engineering", "model evaluation", "model deployment",
+  "prompt engineering", "retrieval augmented generation", "vector database",
+  "time series", "cloud computing", "software development", "web development",
+  "object oriented programming", "rest api", "rest apis", "api development",
+  "continuous integration", "continuous deployment", "version control",
+  "unit testing", "integration testing", "problem solving", "critical thinking",
+  "project management", "data structures", "algorithms", "sql database",
+  "relational database", "postgresql", "javascript", "typescript", "python",
+  "fastapi", "react", "pytorch", "tensorflow", "scikit-learn", "docker",
+  "kubernetes", "git", "github", "power bi", "tableau", "excel",
+];
+
+function normaliseKeywordText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/\bml\b/g, "machine learning")
+    .replace(/\bai\b/g, "artificial intelligence")
+    .replace(/\bnlp\b/g, "natural language processing")
+    .replace(/\bjs\b/g, "javascript")
+    .replace(/\bts\b/g, "typescript")
+    .replace(/\bpostgres\b/g, "postgresql")
+    .replace(/scikit\s+learn/g, "scikit-learn")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 const AI_REVIEW_SECTIONS = [
   {
@@ -45,26 +86,50 @@ const AI_REVIEW_SECTIONS = [
   },
 ];
 
-function getKeywords(text) {
-  const words =
-    String(text || "")
-      .toLowerCase()
-      .match(/[a-z][a-z+#.-]*/g) || [];
+function containsKeywordPhrase(text, phrase) {
+  const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const expression = new RegExp(
+    `(^|[^a-z0-9+#.-])${escapedPhrase}($|[^a-z0-9+#.-])`
+  );
+  return expression.test(text);
+}
 
-  return [
-    ...new Set(
-      words
-        .map((word) => word.replace(/^[.-]+|[.-]+$/g, ""))
-        .filter((word) => word.length > 1 && !STOP_WORDS.has(word))
-    ),
-  ];
+function getKeywords(text) {
+  const normalisedText = normaliseKeywordText(text);
+  const detectedPhrases = KEYWORD_PHRASES.filter((phrase) =>
+    containsKeywordPhrase(normalisedText, phrase)
+  ).filter(
+    (phrase) =>
+      !KEYWORD_PHRASES.some(
+        (otherPhrase) =>
+          otherPhrase.length > phrase.length &&
+          otherPhrase.includes(phrase) &&
+          containsKeywordPhrase(normalisedText, otherPhrase)
+      )
+  );
+  const phraseWords = new Set(
+    detectedPhrases.flatMap((phrase) => phrase.match(/[a-z][a-z+#.-]*/g) || [])
+  );
+  const words = normalisedText.match(/[a-z][a-z+#.-]*/g) || [];
+  const individualKeywords = words
+    .map((word) => word.replace(/^[.-]+|[.-]+$/g, ""))
+    .filter(
+      (word) =>
+        word.length > 1 &&
+        !STOP_WORDS.has(word) &&
+        !phraseWords.has(word)
+    );
+
+  return [...new Set([...detectedPhrases, ...individualKeywords])];
 }
 
 function normaliseHeading(text) {
   return String(text || "")
     .toUpperCase()
+    .replace(/^\s*[-•]\s*/, "")
     .replace(/^\s*\d+[\s.)-]+\s*/, "")
     .replace(/^[#*\s]+|[:*#\s]+$/g, "")
+    .replace(/\s*[—–-]\s*$/, "")
     .trim();
 }
 

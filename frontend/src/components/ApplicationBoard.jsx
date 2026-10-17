@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../lib/api";
 import "./ApplicationBoard.css";
 
@@ -9,6 +9,22 @@ const statuses = [
   "Offer Received",
   "Rejected",
 ];
+
+const statusStyles = {
+  Applied: "status-applied",
+  "In Progress": "status-progress",
+  Interview: "status-interview",
+  "Offer Received": "status-offer",
+  Rejected: "status-rejected",
+};
+
+const statusIcons = {
+  Applied: "📨",
+  "In Progress": "⏳",
+  Interview: "🎯",
+  "Offer Received": "🎉",
+  Rejected: "↩️",
+};
 
 const emptyForm = {
   company: "",
@@ -43,18 +59,18 @@ function ApplicationBoard() {
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [sortBy, setSortBy] = useState("newest");
 
-  // Load applications from the backend.
   const fetchApplications = async () => {
     setLoading(true);
     setError("");
 
     try {
       const data = await apiRequest("/jobs");
-      setApplications(data);
+      setApplications(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Error loading applications:", err);
       setError(err.message || "Could not load applications.");
@@ -67,40 +83,33 @@ function ApplicationBoard() {
     fetchApplications();
   }, []);
 
-  // Search, filter, and sort applications.
-  const filteredApplications = applications
-    .filter((application) => {
-      const search = searchTerm.toLowerCase().trim();
+  const filteredApplications = useMemo(() => {
+    const search = searchTerm.toLowerCase().trim();
 
-      const matchesSearch =
-        application.company?.toLowerCase().includes(search) ||
-        application.job_title?.toLowerCase().includes(search);
+    return applications
+      .filter((application) => {
+        const matchesSearch =
+          application.company?.toLowerCase().includes(search) ||
+          application.job_title?.toLowerCase().includes(search);
 
-      const matchesStatus =
-        statusFilter === "All" ||
-        application.status === statusFilter;
+        const matchesStatus =
+          statusFilter === "All" ||
+          application.status === statusFilter;
 
-      return matchesSearch && matchesStatus;
-    })
-    .sort((a, b) => {
-      if (sortBy === "company") {
-        return (a.company || "").localeCompare(b.company || "");
-      }
+        return matchesSearch && matchesStatus;
+      })
+      .sort((a, b) => {
+        if (sortBy === "company") {
+          return (a.company || "").localeCompare(b.company || "");
+        }
 
-      if (sortBy === "oldest") {
-        return (
-          new Date(a.created_at || 0) -
-          new Date(b.created_at || 0)
-        );
-      }
+        const dateA = new Date(a.created_at || 0).getTime();
+        const dateB = new Date(b.created_at || 0).getTime();
 
-      return (
-        new Date(b.created_at || 0) -
-        new Date(a.created_at || 0)
-      );
-    });
+        return sortBy === "oldest" ? dateA - dateB : dateB - dateA;
+      });
+  }, [applications, searchTerm, statusFilter, sortBy]);
 
-  // Handle changes to form fields.
   const handleChange = (event) => {
     const { name, value } = event.target;
 
@@ -110,7 +119,13 @@ function ApplicationBoard() {
     }));
   };
 
-  // Create or update an application.
+  const openNewForm = () => {
+    setFormData({ ...emptyForm });
+    setEditingId(null);
+    setError("");
+    setShowForm(true);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
@@ -120,15 +135,26 @@ function ApplicationBoard() {
       return;
     }
 
+    let interviewDate = null;
+
+    if (formData.interview_date) {
+      const parsedDate = new Date(formData.interview_date);
+
+      if (Number.isNaN(parsedDate.getTime())) {
+        setError("Please enter a valid interview date and time.");
+        return;
+      }
+
+      interviewDate = parsedDate.toISOString();
+    }
+
     const payload = {
       company: formData.company.trim(),
       job_title: formData.job_title.trim(),
       job_url: formData.job_url.trim(),
       status: formData.status,
       notes: formData.notes.trim(),
-      interview_date: formData.interview_date
-        ? new Date(formData.interview_date).toISOString()
-        : null,
+      interview_date: interviewDate,
     };
 
     setSaving(true);
@@ -171,7 +197,6 @@ function ApplicationBoard() {
     }
   };
 
-  // Populate the form when editing an application.
   const handleEdit = (application) => {
     setFormData({
       company: application.company || "",
@@ -179,9 +204,7 @@ function ApplicationBoard() {
       job_url: application.job_url || "",
       status: application.status || "Applied",
       notes: application.notes || "",
-      interview_date: toLocalDateTime(
-        application.interview_date
-      ),
+      interview_date: toLocalDateTime(application.interview_date),
     });
 
     setEditingId(application.id);
@@ -189,15 +212,15 @@ function ApplicationBoard() {
     setError("");
   };
 
-  // Delete an application.
   const handleDelete = async (id) => {
     const confirmed = window.confirm(
-      "Are you sure you want to delete this application?"
+      "Are you sure you want to delete this application? This action cannot be undone."
     );
 
     if (!confirmed) return;
 
     setError("");
+    setDeletingId(id);
 
     try {
       await apiRequest(`/jobs/${id}`, {
@@ -205,17 +228,16 @@ function ApplicationBoard() {
       });
 
       setApplications((previousApplications) =>
-        previousApplications.filter(
-          (application) => application.id !== id
-        )
+        previousApplications.filter((application) => application.id !== id)
       );
     } catch (err) {
       console.error("Error deleting application:", err);
       setError(err.message || "Could not delete application.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  // Cancel adding or editing.
   const handleCancel = () => {
     setFormData({ ...emptyForm });
     setEditingId(null);
@@ -223,35 +245,66 @@ function ApplicationBoard() {
     setError("");
   };
 
+  const totalApplications = applications.length;
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setStatusFilter("All");
+    setSortBy("newest");
+  };
+
   return (
     <section className="application-board">
-      <div className="board-header">
-        <div>
-          <h2>Application Status</h2>
-          <p>Track your internship applications.</p>
+      <header className="board-header">
+        <div className="board-heading">
+          <span className="board-eyebrow">YOUR JOB SEARCH</span>
+          <h1>Applications</h1>
+          <p>Organise your opportunities and keep your career moving forward.</p>
         </div>
 
         <button
-          onClick={() => {
-            if (showForm) {
-              handleCancel();
-            } else {
-              setFormData({ ...emptyForm });
-              setEditingId(null);
-              setError("");
-              setShowForm(true);
-            }
-          }}
+          type="button"
+          className="add-application-button"
+          onClick={showForm ? handleCancel : openNewForm}
         >
-          {showForm ? "Cancel" : "+ Add Application"}
+          <span>{showForm ? "×" : "+"}</span>
+          {showForm ? "Cancel" : "Add Application"}
         </button>
+      </header>
+
+      <div className="application-summary">
+        <div className="summary-icon">📁</div>
+        <div>
+          <span className="summary-label">Applications tracked</span>
+          <strong className="summary-value">{totalApplications}</strong>
+        </div>
+        <div className="summary-divider" />
+        <div className="summary-description">
+          <strong>{filteredApplications.length} shown</strong>
+          <span>Matching your current search and filters</span>
+        </div>
       </div>
 
       {showForm && (
         <form className="application-form" onSubmit={handleSubmit}>
+          <div className="form-heading">
+            <div>
+              <span className="board-eyebrow">
+                {editingId ? "UPDATE DETAILS" : "NEW OPPORTUNITY"}
+              </span>
+              <h2>{editingId ? "Edit application" : "Add an application"}</h2>
+              <p>
+                {editingId
+                  ? "Update the details of this opportunity."
+                  : "Record a job opportunity to keep everything organised."}
+              </p>
+            </div>
+            <span className="form-heading-icon">✍️</span>
+          </div>
+
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="company">Company *</label>
+              <label htmlFor="company">Company name <span>*</span></label>
               <input
                 id="company"
                 type="text"
@@ -259,19 +312,20 @@ function ApplicationBoard() {
                 value={formData.company}
                 onChange={handleChange}
                 placeholder="e.g. Google"
+                autoComplete="organization"
                 required
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="job_title">Job Title *</label>
+              <label htmlFor="job_title">Job title <span>*</span></label>
               <input
                 id="job_title"
                 type="text"
                 name="job_title"
                 value={formData.job_title}
                 onChange={handleChange}
-                placeholder="e.g. AI Intern"
+                placeholder="e.g. AI/ML Intern"
                 required
               />
             </div>
@@ -279,19 +333,19 @@ function ApplicationBoard() {
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="job_url">Job URL</label>
+              <label htmlFor="job_url">Job posting URL</label>
               <input
                 id="job_url"
                 type="url"
                 name="job_url"
                 value={formData.job_url}
                 onChange={handleChange}
-                placeholder="https://..."
+                placeholder="https://example.com/careers"
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="status">Status</label>
+              <label htmlFor="status">Application status</label>
               <select
                 id="status"
                 name="status"
@@ -307,12 +361,8 @@ function ApplicationBoard() {
             </div>
           </div>
 
-          {/* Interview scheduling */}
           <div className="form-group">
-            <label htmlFor="interview_date">
-              Interview Date &amp; Time
-            </label>
-
+            <label htmlFor="interview_date">Interview date and time</label>
             <input
               id="interview_date"
               type="datetime-local"
@@ -320,16 +370,14 @@ function ApplicationBoard() {
               value={formData.interview_date}
               onChange={handleChange}
             />
-
             <small>
-              Optional. Set a date and time to add an interview
-              to your calendar. Leave it empty if no interview
-              has been scheduled.
+              Optional. Scheduled interviews can appear in your calendar.
             </small>
 
             {formData.interview_date && (
               <button
                 type="button"
+                className="clear-date-button"
                 onClick={() =>
                   setFormData((previousData) => ({
                     ...previousData,
@@ -349,148 +397,240 @@ function ApplicationBoard() {
               name="notes"
               value={formData.notes}
               onChange={handleChange}
-              placeholder="Add notes about this application..."
-              rows="3"
+              placeholder="Add recruiter details, application deadlines, or follow-up notes..."
+              rows={3}
             />
           </div>
 
-          {error && <p className="form-error">{error}</p>}
+          {error && <p className="form-error" role="alert">{error}</p>}
 
-          <button
-            type="submit"
-            className="submit-button"
-            disabled={saving}
-          >
-            {saving
-              ? "Saving..."
-              : editingId
-                ? "Update Application"
-                : "Save Application"}
-          </button>
+          <div className="form-actions">
+            <button
+              type="button"
+              className="cancel-form-button"
+              onClick={handleCancel}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="submit-button"
+              disabled={saving}
+            >
+              {saving
+                ? "Saving..."
+                : editingId
+                  ? "Save Changes"
+                  : "Save Application"}
+            </button>
+          </div>
         </form>
       )}
 
       {!showForm && error && (
-        <p className="form-error">{error}</p>
+        <div className="board-error" role="alert">
+          <span>⚠️ {error}</span>
+          <button type="button" onClick={fetchApplications}>
+            Try again
+          </button>
+        </div>
       )}
 
-      {!loading && (
-        <div className="application-toolbar">
+      <div className="application-toolbar">
+        <div className="search-wrapper">
+          <span aria-hidden="true">⌕</span>
           <input
-            type="text"
-            placeholder="Search by company or job title..."
+            type="search"
+            aria-label="Search applications"
+            placeholder="Search companies or job titles..."
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            className="search-input"
           />
-
-          <select
-            value={statusFilter}
-            onChange={(event) => setStatusFilter(event.target.value)}
-            className="filter-select"
-          >
-            <option value="All">All Statuses</option>
-            {statuses.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={sortBy}
-            onChange={(event) => setSortBy(event.target.value)}
-            className="sort-select"
-          >
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-            <option value="company">Company Name (A–Z)</option>
-          </select>
+          {searchTerm && (
+            <button
+              type="button"
+              className="clear-search-button"
+              aria-label="Clear search"
+              onClick={() => setSearchTerm("")}
+            >
+              ×
+            </button>
+          )}
         </div>
-      )}
 
-      {loading && <p>Loading applications...</p>}
+        <select
+          aria-label="Filter by status"
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+        >
+          <option value="All">All statuses</option>
+          {statuses.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
 
-      {!loading && !error && (
-        <div className="board">
-          {statuses.map((status) => {
-            const statusApplications = filteredApplications.filter(
-              (application) => application.status === status
-            );
+        <select
+          aria-label="Sort applications"
+          value={sortBy}
+          onChange={(event) => setSortBy(event.target.value)}
+        >
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="company">Company name (A–Z)</option>
+        </select>
 
-            return (
-              <div className="status-column" key={status}>
-                <div className="status-title">
-                  <h3>{status}</h3>
-                </div>
+        {(searchTerm || statusFilter !== "All" || sortBy !== "newest") && (
+          <button
+            type="button"
+            className="reset-filters-button"
+            onClick={clearFilters}
+          >
+            Reset
+          </button>
+        )}
+      </div>
 
-                <div className="application-list">
-                  {statusApplications.length === 0 ? (
-                    <p className="empty-state">
-                      {searchTerm || statusFilter !== "All"
-                        ? "No matching applications."
-                        : "No applications here yet."}
-                    </p>
-                  ) : (
-                    statusApplications.map((application) => (
-                      <div
-                        className="application-card"
-                        key={application.id}
-                      >
-                        <h4>{application.company}</h4>
-                        <p>{application.job_title}</p>
+      {loading ? (
+        <div className="board-loading">
+          <span className="loading-spinner" />
+          <p>Loading your applications...</p>
+        </div>
+      ) : (
+        <>
+          <div className="board-caption">
+            <div>
+              <h2>Application pipeline</h2>
+              <p>Move forward one opportunity at a time.</p>
+            </div>
+            <span className="pipeline-count">
+              {filteredApplications.length}{" "}
+              {filteredApplications.length === 1 ? "result" : "results"}
+            </span>
+          </div>
 
-                        {application.job_url && (
-                          <a
-                            href={application.job_url}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            View Job
-                          </a>
-                        )}
+          <div className="board">
+            {statuses.map((status) => {
+              const statusApplications = filteredApplications.filter(
+                (application) => application.status === status
+              );
 
-                        {application.interview_date && (
-                          <div className="application-interview-date">
-                            <strong>📅 Interview</strong>
-                            <p>
-                              {new Date(
-                                application.interview_date
-                              ).toLocaleString([], {
-                                dateStyle: "medium",
-                                timeStyle: "short",
-                              })}
-                            </p>
-                          </div>
-                        )}
+              return (
+                <section
+                  className={`status-column ${statusStyles[status]}`}
+                  key={status}
+                >
+                  <div className="status-title">
+                    <div className="status-title-main">
+                      <span className="status-icon" aria-hidden="true">
+                        {statusIcons[status]}
+                      </span>
+                      <h3>{status}</h3>
+                    </div>
+                    <span className="status-count">
+                      {statusApplications.length}
+                    </span>
+                  </div>
 
-                        {application.notes && (
-                          <small>{application.notes}</small>
-                        )}
-
-                        <div className="card-actions">
-                          <button
-                            className="edit-button"
-                            onClick={() => handleEdit(application)}
-                          >
-                            Edit
-                          </button>
-
-                          <button
-                            className="delete-button"
-                            onClick={() => handleDelete(application.id)}
-                          >
-                            Delete
-                          </button>
-                        </div>
+                  <div className="application-list">
+                    {statusApplications.length === 0 ? (
+                      <div className="empty-state">
+                        <span aria-hidden="true">📭</span>
+                        <p>
+                          {searchTerm || statusFilter !== "All"
+                            ? "No matching applications"
+                            : "Nothing here yet"}
+                        </p>
                       </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                    ) : (
+                      statusApplications.map((application) => (
+                        <article
+                          className="application-card"
+                          key={application.id}
+                        >
+                          <div className="application-card-top">
+                            <div className="company-avatar" aria-hidden="true">
+                              {(application.company || "?")
+                                .trim()
+                                .charAt(0)
+                                .toUpperCase()}
+                            </div>
+                            <div className="application-card-heading">
+                              <h4>{application.company}</h4>
+                              <p>{application.job_title}</p>
+                            </div>
+                          </div>
+
+                          <div className="application-card-status">
+                            <span className={`status-badge ${statusStyles[status]}`}>
+                              {status}
+                            </span>
+                          </div>
+
+                          {application.interview_date && (
+                            <div className="application-interview-date">
+                              <span aria-hidden="true">📅</span>
+                              <div>
+                                <strong>Interview scheduled</strong>
+                                <p>
+                                  {new Date(
+                                    application.interview_date
+                                  ).toLocaleString([], {
+                                    dateStyle: "medium",
+                                    timeStyle: "short",
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          {application.notes && (
+                            <p className="application-notes">
+                              {application.notes}
+                            </p>
+                          )}
+
+                          {application.job_url && (
+                            <a
+                              className="job-link"
+                              href={application.job_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              View job posting <span aria-hidden="true">↗</span>
+                            </a>
+                          )}
+
+                          <div className="card-actions">
+                            <button
+                              type="button"
+                              className="edit-button"
+                              onClick={() => handleEdit(application)}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              className="delete-button"
+                              onClick={() => handleDelete(application.id)}
+                              disabled={deletingId === application.id}
+                            >
+                              {deletingId === application.id
+                                ? "Deleting..."
+                                : "Delete"}
+                            </button>
+                          </div>
+                        </article>
+                      ))
+                    )}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </>
       )}
     </section>
   );

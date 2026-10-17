@@ -3,78 +3,77 @@ import { NavLink } from "react-router-dom";
 import "./Sidebar.css";
 
 function Sidebar() {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <aside className={`sidebar ${isOpen ? "open" : "closed"}`}>
-
+    <aside
+      className={`sidebar ${isHovered ? "open" : "closed"}`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {/* Header */}
       <div className="sidebar-top">
-
         <div className="logo">
           🚀
-          {isOpen && <span>JobTrack-AI</span>}
+          {isHovered && <span>JobTrack-AI</span>}
         </div>
 
         <button
+          type="button"
           className="toggle-button"
-          onClick={() => setIsOpen(!isOpen)}
+          aria-label={isHovered ? "Collapse sidebar" : "Expand sidebar"}
+          title={isHovered ? "Collapse sidebar" : "Expand sidebar"}
+          onClick={() => setIsHovered((previous) => !previous)}
         >
           ☰
         </button>
-
       </div>
 
       {/* Navigation */}
       <nav className="sidebar-nav">
-
-        <NavLink to="/dashboard" className="nav-item">
+        <NavLink to="/dashboard" className="nav-item" title="Dashboard">
           🏠
-          {isOpen && <span>Dashboard</span>}
+          {isHovered && <span>Dashboard</span>}
         </NavLink>
 
-        <NavLink to="/applications" className="nav-item">
+        <NavLink to="/applications" className="nav-item" title="Applications">
           📋
-          {isOpen && <span>Applications</span>}
+          {isHovered && <span>Applications</span>}
         </NavLink>
 
-        <NavLink to="/calendar" className="nav-item">
+        <NavLink to="/calendar" className="nav-item" title="Calendar">
           📅
-          {isOpen && <span>Calendar</span>}
+          {isHovered && <span>Calendar</span>}
         </NavLink>
 
-        <NavLink to="/resume-builder" className="nav-item">
+        <NavLink to="/resume-builder" className="nav-item" title="Resume Builder">
           📄
-          {isOpen && <span>Resume Builder</span>}
+          {isHovered && <span>Resume Builder</span>}
         </NavLink>
 
-        <NavLink to="/ats-scorer" className="nav-item">
+        <NavLink to="/ats-scorer" className="nav-item" title="ATS Scorer">
           🎯
-          {isOpen && <span>ATS Scorer</span>}
+          {isHovered && <span>ATS Scorer</span>}
         </NavLink>
 
-        <NavLink to="/analytics" className="nav-item">
+        <NavLink to="/analytics" className="nav-item" title="Analytics">
           📊
-          {isOpen && <span>Analytics</span>}
+          {isHovered && <span>Analytics</span>}
         </NavLink>
 
-        <NavLink to="/settings" className="nav-item">
+        <NavLink to="/settings" className="nav-item" title="Settings">
           ⚙️
-          {isOpen && <span>Settings</span>}
+          {isHovered && <span>Settings</span>}
         </NavLink>
-
       </nav>
 
       {/* Profile */}
       <div className="profile">
-
-        <NavLink to="/profile" className="nav-item">
+        <NavLink to="/profile" className="nav-item" title="Profile">
           👤
-          {isOpen && <span>Profile</span>}
+          {isHovered && <span>Profile</span>}
         </NavLink>
-
       </div>
-
     </aside>
   );
 }
