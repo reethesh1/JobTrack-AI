@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+
+<html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>JobTrack-AI</title>
+
+<style> body { width: 320px; padding: 16px; font-family: Arial, sans-serif; color: #172033; } h2 { margin-top: 0; } label { display: block; margin-top: 14px; margin-bottom: 6px; font-size: 13px; font-weight: 600; } input { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; } button { width: 100%; margin-top: 16px; padding: 10px; border: none; border-radius: 6px; background: #2563eb; color: white; font-weight: 600; cursor: pointer; } #status { margin-top: 12px; font-size: 12px; overflow-wrap: anywhere; } .hint { margin-top: 12px; color: #64748b; font-size: 12px; line-height: 1.5; } </style>
+
+</head>
+
+<body> <h2>JobTrack-AI</h2> <p>Connect the extension to your JobTrack-AI backend.</p>
+
+<form id="settings-form"> <label for="api-url">Backend URL</label> <input id="api-url" type="url" placeholder="http://127.0.0.1:8000" required >
+
+<label for="import-token">Import token</label>
+<input
+  id="import-token"
+  type="password"
+  autocomplete="off"
+  placeholder="Enter your import token"
+  required
+>
+
+<button type="submit">Save settings</button>
+
+</form>
+
+<p id="status" role="status"></p>
+
+<p class="hint"> Keep your import token private. Use localhost while testing locally. Configure your deployed backend only when its import token is set up. </p>
+
+<script src="popup.js"></script>
+
+</body> </html>
