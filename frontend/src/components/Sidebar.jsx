@@ -41,6 +41,12 @@ function Sidebar() {
           {isHovered && <span>Applications</span>}
         </NavLink>
 
+
+        <NavLink to="/import-review" className="nav-item" title="Import Review">
+          📥
+          {isHovered && <span>Import Review</span>}
+        </NavLink>
+
         <NavLink to="/calendar" className="nav-item" title="Calendar">
           📅
           {isHovered && <span>Calendar</span>}

@@ -3,6 +3,7 @@ import Sidebar from "./components/Sidebar";
 import Dashboard from "./components/Dashboard";
 import ApplicationBoard from "./components/ApplicationBoard";
 import Calendar from "./components/calendar";
+import ImportReview from "./components/ImportReview";
 import ATSScorer from "./components/ATSScorer";
 import {
   Analytics,
@@ -21,6 +22,7 @@ function AppLayout() {
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/applications" element={<ApplicationBoard />} />
+          <Route path="/import-review" element={<ImportReview />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/resume-builder" element={<ResumeBuilder />} />
           <Route path="/ats-scorer" element={<ATSScorer />} />

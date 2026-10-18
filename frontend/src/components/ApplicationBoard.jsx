@@ -256,21 +256,34 @@ function ApplicationBoard() {
   return (
     <section className="application-board">
       <header className="board-header">
-        <div className="board-heading">
-          <span className="board-eyebrow">YOUR JOB SEARCH</span>
-          <h1>Applications</h1>
-          <p>Organise your opportunities and keep your career moving forward.</p>
-        </div>
+  <div className="board-heading">
+    <span className="board-eyebrow">YOUR JOB SEARCH</span>
+    <h1>Applications</h1>
+    <p>Organise your opportunities and keep your career moving forward.</p>
+  </div>
 
-        <button
-          type="button"
-          className="add-application-button"
-          onClick={showForm ? handleCancel : openNewForm}
-        >
-          <span>{showForm ? "×" : "+"}</span>
-          {showForm ? "Cancel" : "Add Application"}
-        </button>
-      </header>
+  <div className="board-header-actions">
+    <button
+      type="button"
+      className="import-from-button"
+      onClick={() => {
+        window.location.href = "/import-review";
+      }}
+    >
+      <span>📥</span>
+      Import From
+    </button>
+
+    <button
+      type="button"
+      className="add-application-button"
+      onClick={showForm ? handleCancel : openNewForm}
+    >
+      <span>{showForm ? "×" : "+"}</span>
+      {showForm ? "Cancel" : "Add Application"}
+    </button>
+  </div>
+</header>
 
       <div className="application-summary">
         <div className="summary-icon">📁</div>

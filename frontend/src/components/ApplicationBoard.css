@@ -871,3 +871,45 @@
     animation-duration: 1.8s;
   }
 }
+
+/* Applications header actions */
+.board-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.import-from-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.import-from-button:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  transform: translateY(-1px);
+}
+
+.import-from-button span {
+  font-size: 17px;
+}
+
+@media (max-width: 600px) {
+  .board-header-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
