@@ -1,8 +1,14 @@
 import React, { useEffect, useState } from "react";
 import "./ATSScorer.css";
 
-// Use the configured backend URL in deployment, with a local-development fallback.
-const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+// Use the configured backend URL in deployment.
+// Fall back to the local FastAPI backend during development.
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
+).replace(/\/+$/, "");
+
+const REQUEST_TIMEOUT_MS = 60000;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 const STOP_WORDS = new Set([
   "a", "about", "an", "and", "are", "as", "at", "be", "been",
@@ -18,25 +24,68 @@ const STOP_WORDS = new Set([
   "requirements", "preferred", "including", "include", "using", "use",
 ]);
 
-// Multi-word technical terms count as a single keyword, rather than inflating
-// the score by counting every word in the same phrase separately.
+// Multi-word technical terms are counted as single keywords.
 const KEYWORD_PHRASES = [
-  "artificial intelligence", "machine learning", "deep learning",
-  "natural language processing", "computer vision", "large language model",
-  "large language models", "generative ai", "generative artificial intelligence",
-  "data science", "data analysis",
-  "data engineering", "data visualization", "statistical analysis",
-  "neural network", "neural networks", "predictive modeling",
-  "feature engineering", "model evaluation", "model deployment",
-  "prompt engineering", "retrieval augmented generation", "vector database",
-  "time series", "cloud computing", "software development", "web development",
-  "object oriented programming", "rest api", "rest apis", "api development",
-  "continuous integration", "continuous deployment", "version control",
-  "unit testing", "integration testing", "problem solving", "critical thinking",
-  "project management", "data structures", "algorithms", "sql database",
-  "relational database", "postgresql", "javascript", "typescript", "python",
-  "fastapi", "react", "pytorch", "tensorflow", "scikit-learn", "docker",
-  "kubernetes", "git", "github", "power bi", "tableau", "excel",
+  "generative artificial intelligence",
+  "artificial intelligence",
+  "machine learning",
+  "deep learning",
+  "natural language processing",
+  "computer vision",
+  "large language models",
+  "large language model",
+  "generative ai",
+  "data science",
+  "data analysis",
+  "data engineering",
+  "data visualization",
+  "statistical analysis",
+  "neural networks",
+  "neural network",
+  "predictive modeling",
+  "feature engineering",
+  "model evaluation",
+  "model deployment",
+  "prompt engineering",
+  "retrieval augmented generation",
+  "vector database",
+  "time series",
+  "cloud computing",
+  "software development",
+  "web development",
+  "object oriented programming",
+  "rest apis",
+  "rest api",
+  "api development",
+  "continuous integration",
+  "continuous deployment",
+  "version control",
+  "unit testing",
+  "integration testing",
+  "problem solving",
+  "critical thinking",
+  "project management",
+  "data structures",
+  "algorithms",
+  "sql database",
+  "relational database",
+  "scikit-learn",
+  "power bi",
+  "javascript",
+  "typescript",
+  "postgresql",
+  "python",
+  "fastapi",
+  "react",
+  "pytorch",
+  "tensorflow",
+  "docker",
+  "kubernetes",
+  "github",
+  "tableau",
+  "excel",
+  "git",
+  "sql",
 ];
 
 function normaliseKeywordText(text) {
@@ -88,14 +137,18 @@ const AI_REVIEW_SECTIONS = [
 
 function containsKeywordPhrase(text, phrase) {
   const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
   const expression = new RegExp(
-    `(^|[^a-z0-9+#.-])${escapedPhrase}($|[^a-z0-9+#.-])`
+    `(^|[^a-z0-9+#.-])${escapedPhrase}($|[^a-z0-9+#.-])`,
+    "i"
   );
+
   return expression.test(text);
 }
 
 function getKeywords(text) {
   const normalisedText = normaliseKeywordText(text);
+
   const detectedPhrases = KEYWORD_PHRASES.filter((phrase) =>
     containsKeywordPhrase(normalisedText, phrase)
   ).filter(
@@ -107,10 +160,15 @@ function getKeywords(text) {
           containsKeywordPhrase(normalisedText, otherPhrase)
       )
   );
+
   const phraseWords = new Set(
-    detectedPhrases.flatMap((phrase) => phrase.match(/[a-z][a-z+#.-]*/g) || [])
+    detectedPhrases.flatMap(
+      (phrase) => phrase.match(/[a-z][a-z+#.-]*/g) || []
+    )
   );
+
   const words = normalisedText.match(/[a-z][a-z+#.-]*/g) || [];
+
   const individualKeywords = words
     .map((word) => word.replace(/^[.-]+|[.-]+$/g, ""))
     .filter(
@@ -120,7 +178,9 @@ function getKeywords(text) {
         !phraseWords.has(word)
     );
 
-  return [...new Set([...detectedPhrases, ...individualKeywords])];
+  return [
+    ...new Set([...detectedPhrases, ...individualKeywords]),
+  ];
 }
 
 function normaliseHeading(text) {
@@ -133,6 +193,14 @@ function normaliseHeading(text) {
     .trim();
 }
 
+function cleanAIReviewLine(line) {
+  return String(line || "")
+    .replace(/([#*_[\]`~>])/g, "")
+    .replace(/^\s*-{3,}\s*$/, "")
+    .replace(/^\s*#{1,6}\s*/, "")
+    .trim();
+}
+
 function formatAIReview(review) {
   const parsedSections = [];
   let currentSection = null;
@@ -140,10 +208,14 @@ function formatAIReview(review) {
   String(review || "")
     .split("\n")
     .forEach((line) => {
-      const cleanedLine = line.trim();
-      if (!cleanedLine) return;
+      const cleanedLine = cleanAIReviewLine(line);
+
+      if (!cleanedLine) {
+        return;
+      }
 
       const headingText = normaliseHeading(cleanedLine);
+
       const matchedSection = AI_REVIEW_SECTIONS.find(
         (section) =>
           headingText === section.title ||
@@ -156,6 +228,7 @@ function formatAIReview(review) {
           ...matchedSection,
           content: [],
         };
+
         parsedSections.push(currentSection);
         return;
       }
@@ -168,14 +241,13 @@ function formatAIReview(review) {
           color: "assessment",
           content: [],
         };
+
         parsedSections.push(currentSection);
       }
 
       currentSection.content.push(cleanedLine);
     });
 
-  // If the model returns an answer without the expected headings,
-  // display the complete response instead of losing any of its text.
   if (parsedSections.length === 0) {
     return [
       {
@@ -189,6 +261,49 @@ function formatAIReview(review) {
   }
 
   return parsedSections;
+}
+
+// Fetch helper with a timeout so a stalled backend cannot leave
+// the page waiting forever.
+async function fetchWithTimeout(url, options = {}, timeoutMs = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(
+        "The request timed out after 60 seconds. The backend may be starting up. Please try again."
+      );
+    }
+
+    if (error instanceof TypeError) {
+      throw new Error(
+        `Could not connect to the JobTrack-AI backend at ${API_BASE_URL}. Check that the backend is running and the API URL is correct.`
+      );
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function readResponseJSON(response) {
+  try {
+    return await response.json();
+  } catch {
+    throw new Error(
+      "The backend returned an unreadable response. Please check the backend logs."
+    );
+  }
 }
 
 function ATSScorer() {
@@ -254,24 +369,35 @@ function ATSScorer() {
 
   const handleFileChange = async (event) => {
     const file = event.target.files?.[0];
-    // Reset the input so selecting the same file again will trigger onChange.
+
+    // Reset the input so the same file can be selected again.
     event.target.value = "";
-    if (!file) return;
+
+    if (!file) {
+      return;
+    }
 
     const allowedExtensions = /\.(pdf|docx)$/i;
 
     if (!allowedExtensions.test(file.name)) {
       setResumeFile(null);
-      setError("Please select a PDF or DOCX resume. Older .doc files are not supported.");
+      setError(
+        "Please select a PDF or DOCX resume. Older .doc files are not supported."
+      );
       setNotice("");
       return;
     }
 
-    // Keep uploads reasonably small and avoid sending accidental large files.
-    const maxFileSize = 10 * 1024 * 1024;
-    if (file.size > maxFileSize) {
+    if (file.size > MAX_FILE_SIZE) {
       setResumeFile(null);
       setError("Please choose a resume smaller than 10 MB.");
+      setNotice("");
+      return;
+    }
+
+    if (file.size === 0) {
+      setResumeFile(null);
+      setError("The selected file is empty. Please choose another resume.");
       setNotice("");
       return;
     }
@@ -288,42 +414,47 @@ function ATSScorer() {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(`${API_BASE_URL}/ats/extract-resume`, {
-        method: "POST",
-        body: formData,
-      });
+      const response = await fetchWithTimeout(
+        `${API_BASE_URL}/ats/extract-resume`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error("The backend returned an unreadable response.");
-      }
+      const data = await readResponseJSON(response);
 
       if (!response.ok) {
-        const detail =
+        throw new Error(
           typeof data.detail === "string"
             ? data.detail
-            : "Could not extract text from this resume.";
-        throw new Error(detail);
+            : "Could not extract text from this resume."
+        );
       }
 
       if (!data.text || !String(data.text).trim()) {
-        throw new Error("No readable text was found in this file.");
+        throw new Error(
+          "No readable text was found in this file. If it is a scanned PDF, it may require OCR."
+        );
       }
 
       setResumeText(String(data.text));
+
       setNotice(
-        `Successfully extracted text from ${data.filename || file.name}. You can now analyse this resume.`
+        `Successfully extracted text from ${
+          data.filename || file.name
+        }. You can now analyse this resume.`
       );
     } catch (err) {
       setResumeFile(null);
+      setResumeText("");
       setError(
         err.message ||
-          "Could not connect to the backend. Make sure your JobTrack-AI backend is running."
+          "Could not extract the resume. Please check your backend connection."
       );
       setNotice("");
     } finally {
+      // Always stop the loading indicator, including on timeout or failure.
       setExtracting(false);
     }
   };
@@ -340,9 +471,7 @@ function ATSScorer() {
 
     if (!resumeText.trim()) {
       setError(
-        resumeFile
-          ? "Uploaded-file analysis is not available yet. Paste the resume text below or use your saved resume."
-          : "Please load your saved resume or paste your resume text."
+        "Please load your saved resume, upload a supported file, or paste your resume text."
       );
       return;
     }
@@ -357,9 +486,17 @@ function ATSScorer() {
       return;
     }
 
-    const matched = jobKeywords.filter((word) => resumeKeywords.has(word));
-    const missing = jobKeywords.filter((word) => !resumeKeywords.has(word));
-    const score = Math.round((matched.length / jobKeywords.length) * 100);
+    const matched = jobKeywords.filter((word) =>
+      resumeKeywords.has(word)
+    );
+
+    const missing = jobKeywords.filter(
+      (word) => !resumeKeywords.has(word)
+    );
+
+    const score = Math.round(
+      (matched.length / jobKeywords.length) * 100
+    );
 
     setResult({
       score,
@@ -387,39 +524,41 @@ function ATSScorer() {
     setAiLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/ats/ai-review`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          resume_text: resumeText,
-          job_description: jobDescription,
-        }),
-      });
+      const response = await fetchWithTimeout(
+        `${API_BASE_URL}/ats/ai-review`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            resume_text: resumeText,
+            job_description: jobDescription,
+          }),
+        }
+      );
 
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        throw new Error("The backend returned an unreadable response.");
-      }
+      const data = await readResponseJSON(response);
 
       if (!response.ok) {
         throw new Error(
-          data.detail || "Could not generate the AI review."
+          typeof data.detail === "string"
+            ? data.detail
+            : "Could not generate the AI review."
         );
       }
 
       if (!data.review || !String(data.review).trim()) {
-        throw new Error("The AI returned an empty review. Please try again.");
+        throw new Error(
+          "The AI returned an empty review. Please try again."
+        );
       }
 
       setAiReview(String(data.review));
     } catch (err) {
       setError(
         err.message ||
-          "Could not connect to local AI. Make sure your backend and Ollama are running."
+          "Could not complete the AI resume review. Please check your backend connection and try again."
       );
     } finally {
       setAiLoading(false);
@@ -439,8 +578,8 @@ function ATSScorer() {
         <div>
           <h1>ATS Resume Scorer</h1>
           <p>
-            Compare your resume with a job description, check keyword overlap,
-            and get personalised feedback from your local AI model.
+            Compare your resume with a job description, check keyword
+            overlap, and get personalised feedback from Gemini AI.
           </p>
         </div>
       </div>
@@ -449,14 +588,17 @@ function ATSScorer() {
         <div className="ats-input-grid">
           <section className="ats-card">
             <h2>Your Resume</h2>
+
             <p className="ats-description">
-              Upload a PDF/DOCX, load your saved Resume Builder details, or paste resume text.
+              Upload a PDF or DOCX, load your saved Resume Builder
+              details, or paste resume text.
             </p>
 
             <button
               type="button"
               className="analyze-button"
               onClick={loadSavedResume}
+              disabled={extracting}
             >
               Use My Saved Resume
             </button>
@@ -468,10 +610,15 @@ function ATSScorer() {
                 onChange={handleFileChange}
                 disabled={extracting}
               />
+
               <div className="upload-icon">📄</div>
+
               <strong>
-                {resumeFile ? resumeFile.name : "Choose your resume file"}
+                {resumeFile
+                  ? resumeFile.name
+                  : "Choose your resume file"}
               </strong>
+
               <span>
                 {extracting
                   ? "Extracting text from your resume..."
@@ -482,6 +629,7 @@ function ATSScorer() {
             <label className="ats-input-label" htmlFor="resume-text">
               Resume text
             </label>
+
             <textarea
               id="resume-text"
               className="job-description-input"
@@ -495,8 +643,14 @@ function ATSScorer() {
             />
 
             {extracting && (
-              <p className="ats-notice" role="status" aria-live="polite">
-                Please wait while your resume text is being extracted...
+              <p
+                className="ats-notice"
+                role="status"
+                aria-live="polite"
+              >
+                Please wait while your resume text is being extracted.
+                This request will time out after 60 seconds if the
+                backend does not respond.
               </p>
             )}
 
@@ -509,6 +663,7 @@ function ATSScorer() {
 
           <section className="ats-card">
             <h2>Job Description</h2>
+
             <p className="ats-description">
               Paste the job description for the role you want to apply for.
             </p>
@@ -537,7 +692,11 @@ function ATSScorer() {
             type="button"
             className="analyze-button"
             onClick={handleAnalyze}
-            disabled={extracting || !resumeText.trim() || !jobDescription.trim()}
+            disabled={
+              extracting ||
+              !resumeText.trim() ||
+              !jobDescription.trim()
+            }
           >
             Analyze Resume
           </button>
@@ -547,21 +706,32 @@ function ATSScorer() {
             className="analyze-button ai-review-button"
             onClick={handleAIReview}
             disabled={
-              extracting || aiLoading || !resumeText.trim() || !jobDescription.trim()
+              extracting ||
+              aiLoading ||
+              !resumeText.trim() ||
+              !jobDescription.trim()
             }
           >
-            {aiLoading ? "AI is reviewing your resume..." : "✨ Get AI Review"}
+            {aiLoading
+              ? "AI is reviewing your resume..."
+              : "✨ Get AI Review"}
           </button>
         </div>
 
         {aiLoading && (
-          <div className="ai-loading-card" role="status" aria-live="polite">
+          <div
+            className="ai-loading-card"
+            role="status"
+            aria-live="polite"
+          >
             <span className="ai-loading-spinner" />
+
             <div>
-              <strong>Qwen is reviewing your resume</strong>
+              <strong>Gemini is reviewing your resume</strong>
+
               <p>
-                Your local AI is comparing your resume with the job description.
-                This can take a little while.
+                Gemini AI is comparing your resume with the job
+                description. This can take a little while.
               </p>
             </div>
           </div>
@@ -577,6 +747,7 @@ function ATSScorer() {
 
               <div className="score-content">
                 <h2>Keyword Match Score</h2>
+
                 <p>
                   Matched {result.matched.length} of {result.total} unique
                   keywords identified in the job description.
@@ -608,11 +779,17 @@ function ATSScorer() {
 
             <div className="ats-keyword-grid">
               <section className="ats-keyword-card">
-                <h3>Matched Keywords ({result.matched.length})</h3>
-                {result.matched.length ? (
+                <h3>
+                  Matched Keywords ({result.matched.length})
+                </h3>
+
+                {result.matched.length > 0 ? (
                   <div className="ats-keyword-list">
                     {result.matched.map((word) => (
-                      <span className="ats-keyword matched" key={word}>
+                      <span
+                        className="ats-keyword matched"
+                        key={word}
+                      >
                         {word}
                       </span>
                     ))}
@@ -623,42 +800,62 @@ function ATSScorer() {
               </section>
 
               <section className="ats-keyword-card">
-                <h3>Potentially Missing ({result.missing.length})</h3>
-                {result.missing.length ? (
+                <h3>
+                  Potentially Missing ({result.missing.length})
+                </h3>
+
+                {result.missing.length > 0 ? (
                   <div className="ats-keyword-list">
                     {result.missing.map((word) => (
-                      <span className="ats-keyword missing" key={word}>
+                      <span
+                        className="ats-keyword missing"
+                        key={word}
+                      >
                         {word}
                       </span>
                     ))}
                   </div>
                 ) : (
-                  <p>All identified keywords appear in your resume.</p>
+                  <p>
+                    All identified keywords appear in your resume.
+                  </p>
                 )}
               </section>
             </div>
 
             <p className="ats-disclaimer">
               This is a basic keyword-overlap estimate, not an official ATS
-              score. It does not assess context, skill proficiency, formatting,
-              or actual hiring likelihood. Add missing terms only when they
-              accurately describe your qualifications.
+              score. It does not assess context, skill proficiency,
+              formatting, or actual hiring likelihood. Add missing terms
+              only when they accurately describe your qualifications.
             </p>
           </div>
         )}
 
         {aiReview && (
-          <section className="ai-review-results" aria-labelledby="ai-review-title">
+          <section
+            className="ai-review-results"
+            aria-labelledby="ai-review-title"
+          >
             <div className="ai-review-header">
               <div>
-                <span className="ai-review-eyebrow">POWERED BY LOCAL AI</span>
-                <h2 id="ai-review-title">✨ Your AI Resume Review</h2>
+                <span className="ai-review-eyebrow">
+                  POWERED BY GEMINI AI
+                </span>
+
+                <h2 id="ai-review-title">
+                  ✨ Your AI Resume Review
+                </h2>
+
                 <p>
-                  Personalised insights to help you tailor your resume to this
-                  job opportunity.
+                  Personalised insights to help you tailor your resume
+                  to this job opportunity.
                 </p>
               </div>
-              <span className="ai-model-badge">🤖 Qwen 2.5 · Local</span>
+
+              <span className="ai-model-badge">
+                🤖 Gemini
+              </span>
             </div>
 
             <div className="ai-review-grid">
@@ -668,9 +865,13 @@ function ATSScorer() {
                   key={`${section.title}-${index}`}
                 >
                   <div className="ai-section-heading">
-                    <span className="ai-section-icon" aria-hidden="true">
+                    <span
+                      className="ai-section-icon"
+                      aria-hidden="true"
+                    >
                       {section.icon}
                     </span>
+
                     <h3>{section.heading}</h3>
                   </div>
 
@@ -685,6 +886,7 @@ function ATSScorer() {
 
             <div className="ai-review-disclaimer">
               <span aria-hidden="true">ℹ️</span>
+
               <p>
                 AI-generated advice may contain mistakes. Verify all
                 recommendations against your actual qualifications and
