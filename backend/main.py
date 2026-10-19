@@ -11,7 +11,6 @@ from docx import Document
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
-
 from app.database import Base, engine, SessionLocal
 from app import models
 from app.models import JobApplication,UserProfile
