@@ -33,12 +33,10 @@ function getItems(data) {
 
 export default function ImportReview() {
   const [token, setToken] = useState(
-    () => sessionStorage.getItem(TOKEN_STORAGE_KEY) || ""
-  );
-  const [tokenInput, setTokenInput] = useState(
-    () => sessionStorage.getItem(TOKEN_STORAGE_KEY) || ""
-  );
+  () => localStorage.getItem(TOKEN_STORAGE_KEY) || "");
 
+  const [tokenInput, setTokenInput] = useState(
+  () => localStorage.getItem(TOKEN_STORAGE_KEY) || "");
   const [pendingImports, setPendingImports] = useState([]);
   const [history, setHistory] = useState([]);
   const [activeTab, setActiveTab] = useState("pending");
@@ -97,13 +95,14 @@ export default function ImportReview() {
       return;
     }
 
-    sessionStorage.setItem(TOKEN_STORAGE_KEY, cleanedToken);
+    localStorage.setItem(TOKEN_STORAGE_KEY, cleanedToken);
     setToken(cleanedToken);
     setNotice("");
     setError("");
   }
 
   function clearToken() {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
     sessionStorage.removeItem(TOKEN_STORAGE_KEY);
 
     setToken("");
