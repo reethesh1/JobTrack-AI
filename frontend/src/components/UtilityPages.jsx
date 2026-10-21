@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { API_URL, apiRequest } from "../lib/api";
+import { apiRequest } from "../lib/api";
 import { jsPDF } from "jspdf";
 import "./UtilityPages.css";
 
