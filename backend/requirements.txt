@@ -40,3 +40,8 @@ python-multipart
 
 httpx
 google-genai==2.31.0
+
+PyJWT==2.15.1
+pwdlib[argon2]==0.3.1
+
+email-validator

@@ -1,14 +1,12 @@
-import os
-import secrets
-
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.auth import get_current_user
 from app.database import SessionLocal
-from app.models import JobApplication, JobImport
+from app.models import JobApplication, JobImport, User
 from app.schemas import JobImportCreate
 
 
@@ -16,27 +14,6 @@ router = APIRouter(
     prefix="/imports",
     tags=["Automatic Application Imports"],
 )
-
-
-def require_import_token(
-    x_import_token: str | None = Header(default=None),
-):
-    expected_token = os.getenv("JOBTRACK_IMPORT_TOKEN")
-
-    if not expected_token:
-        raise HTTPException(
-            status_code=503,
-            detail="Automatic imports are not configured.",
-        )
-
-    if not x_import_token or not secrets.compare_digest(
-        x_import_token,
-        expected_token,
-    ):
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or missing import token.",
-        )
 
 
 def get_db():
@@ -53,6 +30,7 @@ def normalize(value: str | None) -> str:
 
 def find_duplicate(
     db: Session,
+    user_id: int,
     company: str,
     job_title: str,
     job_url: str | None,
@@ -64,8 +42,9 @@ def find_duplicate(
         existing_application = (
             db.query(JobApplication)
             .filter(
+                JobApplication.user_id == user_id,
                 func.lower(func.trim(JobApplication.job_url))
-                == normalized_url
+                == normalized_url,
             )
             .first()
         )
@@ -77,13 +56,17 @@ def find_duplicate(
             }
 
         query = db.query(JobImport).filter(
-            func.lower(func.trim(JobImport.job_url)) == normalized_url,
+            JobImport.user_id == user_id,
+            func.lower(func.trim(JobImport.job_url))
+            == normalized_url,
             JobImport.review_status.in_(["pending", "approved"]),
         )
+
     else:
         existing_application = (
             db.query(JobApplication)
             .filter(
+                JobApplication.user_id == user_id,
                 func.lower(func.trim(JobApplication.company))
                 == normalize(company),
                 func.lower(func.trim(JobApplication.job_title))
@@ -99,6 +82,7 @@ def find_duplicate(
             }
 
         query = db.query(JobImport).filter(
+            JobImport.user_id == user_id,
             func.lower(func.trim(JobImport.company))
             == normalize(company),
             func.lower(func.trim(JobImport.job_title))
@@ -120,12 +104,10 @@ def find_duplicate(
     return None
 
 
-@router.post(
-    "",
-    dependencies=[Depends(require_import_token)],
-)
+@router.post("")
 def create_import(
     data: JobImportCreate,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     company = data.company.strip()
@@ -164,10 +146,11 @@ def create_import(
         )
 
     duplicate = find_duplicate(
-        db,
-        company,
-        job_title,
-        data.job_url,
+        db=db,
+        user_id=current_user.id,
+        company=company,
+        job_title=job_title,
+        job_url=data.job_url,
     )
 
     if duplicate:
@@ -183,6 +166,7 @@ def create_import(
         existing_external_id = (
             db.query(JobImport)
             .filter(
+                JobImport.user_id == current_user.id,
                 JobImport.source == data.source,
                 JobImport.external_id == data.external_id,
                 JobImport.review_status.in_(["pending", "approved"]),
@@ -197,6 +181,7 @@ def create_import(
             )
 
     imported_job = JobImport(
+        user_id=current_user.id,
         company=company,
         job_title=job_title,
         job_url=data.job_url,
@@ -215,48 +200,58 @@ def create_import(
     return imported_job
 
 
-@router.get(
-    "/pending",
-    dependencies=[Depends(require_import_token)],
-)
-def get_pending_imports(db: Session = Depends(get_db)):
+@router.get("/pending")
+def get_pending_imports(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     return (
         db.query(JobImport)
-        .filter(JobImport.review_status == "pending")
+        .filter(
+            JobImport.user_id == current_user.id,
+            JobImport.review_status == "pending",
+        )
         .order_by(JobImport.created_at.desc())
         .all()
     )
 
 
-@router.get(
-    "/history",
-    dependencies=[Depends(require_import_token)],
-)
-def get_import_history(db: Session = Depends(get_db)):
+@router.get("/history")
+def get_import_history(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     return (
         db.query(JobImport)
-        .filter(JobImport.review_status != "pending")
+        .filter(
+            JobImport.user_id == current_user.id,
+            JobImport.review_status != "pending",
+        )
         .order_by(JobImport.created_at.desc())
         .all()
     )
 
 
-@router.post(
-    "/{import_id}/approve",
-    dependencies=[Depends(require_import_token)],
-)
+@router.post("/{import_id}/approve")
 def approve_import(
     import_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     imported_job = (
         db.query(JobImport)
-        .filter(JobImport.id == import_id)
+        .filter(
+            JobImport.id == import_id,
+            JobImport.user_id == current_user.id,
+        )
         .first()
     )
 
     if imported_job is None:
-        raise HTTPException(status_code=404, detail="Import not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="Import not found.",
+        )
 
     if imported_job.review_status != "pending":
         raise HTTPException(
@@ -265,10 +260,11 @@ def approve_import(
         )
 
     duplicate = find_duplicate(
-        db,
-        imported_job.company,
-        imported_job.job_title,
-        imported_job.job_url,
+        db=db,
+        user_id=current_user.id,
+        company=imported_job.company,
+        job_title=imported_job.job_title,
+        job_url=imported_job.job_url,
         exclude_import_id=imported_job.id,
     )
 
@@ -293,6 +289,7 @@ def approve_import(
     )
 
     application = JobApplication(
+        user_id=current_user.id,
         company=imported_job.company,
         job_title=imported_job.job_title,
         job_url=imported_job.job_url or "",
@@ -328,22 +325,26 @@ def approve_import(
         raise
 
 
-@router.post(
-    "/{import_id}/reject",
-    dependencies=[Depends(require_import_token)],
-)
+@router.post("/{import_id}/reject")
 def reject_import(
     import_id: int,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     imported_job = (
         db.query(JobImport)
-        .filter(JobImport.id == import_id)
+        .filter(
+            JobImport.id == import_id,
+            JobImport.user_id == current_user.id,
+        )
         .first()
     )
 
     if imported_job is None:
-        raise HTTPException(status_code=404, detail="Import not found.")
+        raise HTTPException(
+            status_code=404,
+            detail="Import not found.",
+        )
 
     if imported_job.review_status != "pending":
         raise HTTPException(

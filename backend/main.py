@@ -2,9 +2,10 @@ import os
 import httpx
 from io import BytesIO
 from pathlib import Path
+from app.auth_routes import router as auth_router
 
 from google import genai
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File,Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pypdf import PdfReader
 from docx import Document
@@ -14,9 +15,11 @@ from datetime import datetime, timezone
 from app.database import Base, engine, SessionLocal
 from app import models
 from app.models import JobApplication,UserProfile
+from app.models import User
 from app.schemas import JobCreate
 from app.import_routes import router as import_router
 from sqlalchemy import text
+from app.auth import get_current_user
 
 
 # Ollama configuration. Defaults are suitable for local development.
@@ -30,23 +33,77 @@ OLLAMA_BASE_URL = os.getenv(
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 
 
-# Create database tables if they do not already exist
+
+
+# Create missing database tables without deleting existing data.
 Base.metadata.create_all(bind=engine)
 
-
-# Safely add interview_date to existing PostgreSQL databases.
-# Existing application records are preserved.
+# Safely migrate existing PostgreSQL tables.
+# Existing records are preserved, and new user_id columns remain nullable
+# until we explicitly associate legacy records with the correct user.
 with engine.begin() as connection:
+    # Preserve the existing interview-date migration.
     connection.execute(
         text("""
             ALTER TABLE job_applications
-            ADD COLUMN IF NOT EXISTS interview_date TIMESTAMP WITH TIME ZONE
+            ADD COLUMN IF NOT EXISTS interview_date
+            TIMESTAMP WITH TIME ZONE
         """)
     )
+
+    # Add user ownership columns to existing tables.
+    connection.execute(
+        text("""
+            ALTER TABLE job_applications
+            ADD COLUMN IF NOT EXISTS user_id INTEGER
+            REFERENCES users(id)
+        """)
+    )
+
+    connection.execute(
+        text("""
+            ALTER TABLE user_profiles
+            ADD COLUMN IF NOT EXISTS user_id INTEGER
+            REFERENCES users(id)
+        """)
+    )
+
+    connection.execute(
+        text("""
+            ALTER TABLE job_imports
+            ADD COLUMN IF NOT EXISTS user_id INTEGER
+            REFERENCES users(id)
+        """)
+    )
+
+    # Add indexes to speed up user-specific queries.
+    connection.execute(
+        text("""
+            CREATE INDEX IF NOT EXISTS ix_job_applications_user_id
+            ON job_applications (user_id)
+        """)
+    )
+
+    connection.execute(
+        text("""
+            CREATE INDEX IF NOT EXISTS ix_user_profiles_user_id
+            ON user_profiles (user_id)
+        """)
+    )
+
+    connection.execute(
+        text("""
+            CREATE INDEX IF NOT EXISTS ix_job_imports_user_id
+            ON job_imports (user_id)
+        """)
+    )
+
+
 
 # Initialize FastAPI
 app = FastAPI(title="JobTrack AI")
 app.include_router(import_router)
+app.include_router(auth_router)
 # Request format for AI resume reviews
 class AIReviewRequest(BaseModel):
     resume_text: str = Field(..., min_length=1, max_length=100_000)
@@ -71,14 +128,19 @@ app.add_middleware(
 def root():
     return {"message": "JobTrack AI backend is running"}
 
-
 # Get application statistics
 @app.get("/jobs/stats")
-def get_job_stats():
+def get_job_stats(
+    current_user: User = Depends(get_current_user),
+):
     db = SessionLocal()
 
     try:
-        jobs = db.query(JobApplication).all()
+        jobs = (
+            db.query(JobApplication)
+            .filter(JobApplication.user_id == current_user.id)
+            .all()
+        )
 
         now = datetime.now(timezone.utc)
 
@@ -110,7 +172,9 @@ def get_job_stats():
                 created_at = job.created_at
 
                 if created_at.tzinfo is None:
-                    created_at = created_at.replace(tzinfo=timezone.utc)
+                    created_at = created_at.replace(
+                        tzinfo=timezone.utc
+                    )
 
                 if (
                     created_at.year == now.year
@@ -147,31 +211,44 @@ def serialize_job(job: JobApplication):
     }
 
 
-# Get all job applications
+
+
+# Get all job applications for the authenticated user
 @app.get("/jobs")
-def get_jobs():
+def get_jobs(
+    current_user: User = Depends(get_current_user),
+):
     db: Session = SessionLocal()
 
     try:
-        jobs = db.query(JobApplication).all()
+        jobs = (
+            db.query(JobApplication)
+            .filter(JobApplication.user_id == current_user.id)
+            .all()
+        )
+
         return [serialize_job(job) for job in jobs]
 
     finally:
         db.close()
-
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
 
 
+
 # Create a job application
 @app.post("/jobs")
-def create_job(job: JobCreate):
+def create_job(
+    job: JobCreate,
+    current_user: User = Depends(get_current_user),
+):
     db: Session = SessionLocal()
 
     try:
         new_job = JobApplication(
+            user_id=current_user.id,
             company=job.company,
             job_title=job.job_title,
             job_url=job.job_url,
@@ -194,15 +271,23 @@ def create_job(job: JobCreate):
         db.close()
 
 
+
 # Update a job application
 @app.put("/jobs/{job_id}")
-def update_job(job_id: int, job: JobCreate):
+def update_job(
+    job_id: int,
+    job: JobCreate,
+    current_user: User = Depends(get_current_user),
+):
     db: Session = SessionLocal()
 
     try:
         existing_job = (
             db.query(JobApplication)
-            .filter(JobApplication.id == job_id)
+            .filter(
+                JobApplication.id == job_id,
+                JobApplication.user_id == current_user.id,
+            )
             .first()
         )
 
@@ -234,15 +319,24 @@ def update_job(job_id: int, job: JobCreate):
     finally:
         db.close()
 
+
+
+
 # Delete a job application
 @app.delete("/jobs/{job_id}")
-def delete_job(job_id: int):
+def delete_job(
+    job_id: int,
+    current_user: User = Depends(get_current_user),
+):
     db: Session = SessionLocal()
 
     try:
         existing_job = (
             db.query(JobApplication)
-            .filter(JobApplication.id == job_id)
+            .filter(
+                JobApplication.id == job_id,
+                JobApplication.user_id == current_user.id,
+            )
             .first()
         )
 
@@ -261,15 +355,22 @@ def delete_job(job_id: int):
 
     finally:
         db.close()
-        
 
-# Get the saved profile
+
+
+# Get the authenticated user's profile
 @app.get("/profile")
-def get_profile():
+def get_profile(
+    current_user: User = Depends(get_current_user),
+):
     db = SessionLocal()
 
     try:
-        profile = db.query(UserProfile).first()
+        profile = (
+            db.query(UserProfile)
+            .filter(UserProfile.user_id == current_user.id)
+            .first()
+        )
 
         if profile is None:
             return {
@@ -294,16 +395,24 @@ def get_profile():
         db.close()
 
 
-# Save or update the profile
+
+# Save or update the authenticated user's profile
 @app.post("/profile")
-def save_profile(data: dict):
+def save_profile(
+    data: dict,
+    current_user: User = Depends(get_current_user),
+):
     db = SessionLocal()
 
     try:
-        profile = db.query(UserProfile).first()
+        profile = (
+            db.query(UserProfile)
+            .filter(UserProfile.user_id == current_user.id)
+            .first()
+        )
 
         if profile is None:
-            profile = UserProfile()
+            profile = UserProfile(user_id=current_user.id)
             db.add(profile)
 
         profile.full_name = data.get("fullName", "")
@@ -326,15 +435,22 @@ def save_profile(data: dict):
             "portfolio": profile.portfolio,
         }
 
+    except Exception:
+        db.rollback()
+        raise
+
     finally:
         db.close()
+
+
         
 # Extract text from uploaded PDF or DOCX resumes
 @app.post("/ats/extract-resume")
-async def extract_resume(file: UploadFile = File(...)):
+async def extract_resume(file: UploadFile = File(...),
+                         current_user: User = Depends(get_current_user),
+):
     filename = file.filename or ""
     extension = Path(filename).suffix.lower()
-
     if extension not in {".pdf", ".docx"}:
         raise HTTPException(
             status_code=400,
@@ -406,7 +522,10 @@ async def extract_resume(file: UploadFile = File(...)):
 # Local development defaults to Ollama on this computer. In production,
 # configure OLLAMA_BASE_URL to a reachable, secured Ollama service.
 @app.post("/ats/ai-review-ollama")
-async def ai_resume_review(data: AIReviewRequest):
+async def ai_resume_review(
+    data: AIReviewRequest,
+    current_user: User = Depends(get_current_user),
+):
     resume_text = data.resume_text.strip()
     job_description = data.job_description.strip()
 
@@ -541,7 +660,10 @@ Use short bullet points under each heading. If there is insufficient evidence fo
 
 # Gemini-powered ATS resume review.
 @app.post("/ats/ai-review")
-async def ai_resume_review(data: AIReviewRequest):
+async def ai_resume_review(
+    data: AIReviewRequest,
+    current_user:User = Depends(get_current_user),
+):
     resume_text = data.resume_text.strip()
     job_description = data.job_description.strip()
 

@@ -1,32 +1,138 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobTrack-AI</title>
 
-<html lang="en"> <head> <meta charset="UTF-8"> <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>JobTrack-AI</title>
+    <style>
+        body {
+            width: 320px;
+            padding: 16px;
+            font-family: Arial, sans-serif;
+            color: #172033;
+        }
 
-<style> body { width: 320px; padding: 16px; font-family: Arial, sans-serif; color: #172033; } h2 { margin-top: 0; } label { display: block; margin-top: 14px; margin-bottom: 6px; font-size: 13px; font-weight: 600; } input { box-sizing: border-box; width: 100%; padding: 9px; border: 1px solid #cbd5e1; border-radius: 6px; } button { width: 100%; margin-top: 16px; padding: 10px; border: none; border-radius: 6px; background: #2563eb; color: white; font-weight: 600; cursor: pointer; } #status { margin-top: 12px; font-size: 12px; overflow-wrap: anywhere; } .hint { margin-top: 12px; color: #64748b; font-size: 12px; line-height: 1.5; } </style>
+        h2 {
+            margin-top: 0;
+        }
 
+        p {
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        label {
+            display: block;
+            margin-top: 14px;
+            margin-bottom: 6px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 9px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 16px;
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            background: #2563eb;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        #logout-button {
+            background: #dc2626;
+        }
+
+        #status {
+            margin-top: 12px;
+            font-size: 12px;
+            overflow-wrap: anywhere;
+        }
+
+        .hint {
+            margin-top: 12px;
+            color: #64748b;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 
-<body> <h2>JobTrack-AI</h2> <p>Connect the extension to your JobTrack-AI backend.</p>
+<body>
+    <h2>JobTrack-AI</h2>
 
-<form id="settings-form"> <label for="api-url">Backend URL</label> <input id="api-url" type="url" placeholder="http://127.0.0.1:8000" required >
+    <p>Connect your extension to your JobTrack-AI account.</p>
 
-<label for="import-token">Import token</label>
-<input
-  id="import-token"
-  type="password"
-  autocomplete="off"
-  placeholder="Enter your import token"
-  required
->
+    <form id="settings-form">
+        <label for="api-url">Backend URL</label>
+        <input
+            id="api-url"
+            type="url"
+            placeholder="http://127.0.0.1:8000"
+            required
+        >
 
-<button type="submit">Save settings</button>
+        <div id="login-section">
+            <label for="email">Email</label>
+            <input
+                id="email"
+                type="email"
+                autocomplete="username"
+                placeholder="Your JobTrack-AI email"
+                required
+            >
 
-</form>
+            <label for="password">Password</label>
+            <input
+                id="password"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Your account password"
+                required
+            >
 
-<p id="status" role="status"></p>
+            <button id="login-button" type="submit">
+                Sign in
+            </button>
+        </div>
+    </form>
 
-<p class="hint"> Keep your import token private. Use localhost while testing locally. Configure your deployed backend only when its import token is set up. </p>
+    <div id="account-section" class="hidden">
+        <p id="account-info"></p>
 
-<script src="popup.js"></script>
+        <button id="logout-button" type="button">
+            Sign out
+        </button>
+    </div>
 
-</body> </html>
+    <p id="status" role="status"></p>
+
+    <p class="hint">
+        Sign in with your JobTrack-AI account.
+        Use localhost for local testing and HTTPS for your deployed backend.
+        Your password is not saved by the extension.
+    </p>
+
+    <script src="popup.js"></script>
+</body>
+</html>
