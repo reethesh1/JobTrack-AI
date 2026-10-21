@@ -699,20 +699,50 @@ export function Profile() {
 }
 
 export function Settings() {
-  const [apiStatus, setApiStatus] = useState("Not checked yet");
-  const [checking, setChecking] = useState(false);
-  const check = async () => {
-    setChecking(true); setApiStatus("Checking…");
-    try {
-      const response = await fetch(`${API_URL}/health`);
-      if (!response.ok) throw new Error("Backend returned an error");
-      const data = await response.json();
-      setApiStatus(data.status === "ok" ? "Connected" : "Unexpected response");
-    } catch { setApiStatus("Not reachable — check Render deployment and CORS settings."); }
-    finally { setChecking(false); }
-  };
-  return <section className="utility-page"><header className="utility-header"><div><h1>Settings</h1><p>Check your deployment and local preferences.</p></div></header>
-    <div className="utility-card"><h2>Backend connection</h2><p className="utility-muted">API endpoint: <code>{API_URL}</code></p><div className="settings-status"><span>Connection status</span><strong>{apiStatus}</strong></div><button onClick={check} disabled={checking}>{checking ? "Checking…" : "Test backend connection"}</button></div>
-    <div className="utility-card"><h2>Data and privacy</h2><p className="utility-muted">Job applications are stored in your connected database. Profile and resume-builder details are stored locally in this browser. Do not enter passwords or other sensitive information in application notes.</p></div>
-  </section>;
+return (
+<section className="utility-page">
+<header className="utility-header">
+<div>
+<h1>Settings</h1>
+<p>Manage your preferences and learn how your data is stored.</p>
+</div>
+</header>
+
+  <div className="utility-card">
+    <h2>Application status</h2>
+
+    <p className="utility-muted">
+      JobTrack-AI is configured to connect to its services
+      automatically. You can manage your job applications,
+      profile, and career information from your dashboard.
+    </p>
+  </div>
+
+  <div className="utility-card">
+    <h2>Data and privacy</h2>
+
+    <p className="utility-muted">
+      Your job applications and profile information are stored
+      in the JobTrack-AI database associated with your account.
+      Resume Builder details and template preferences are stored
+      locally in your browser.
+    </p>
+
+    <p className="utility-muted">
+      For your security, avoid including passwords or other
+      sensitive personal information in application notes.
+    </p>
+  </div>
+
+  <div className="utility-card">
+    <h2>Need help?</h2>
+
+    <p className="utility-muted">
+      If something isn't working correctly, try refreshing
+      the page. If the problem continues, please try again later.
+    </p>
+  </div>
+</section>
+
+);
 }
