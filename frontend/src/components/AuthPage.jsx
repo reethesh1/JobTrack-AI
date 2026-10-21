@@ -55,7 +55,8 @@ export default function AuthPage({ mode = "login" }) {
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(
-        err.message || "Authentication failed. Please try again."
+        err.message ||
+          "Authentication failed. Please try again."
       );
     } finally {
       setLoading(false);
@@ -92,7 +93,9 @@ export default function AuthPage({ mode = "login" }) {
         <form onSubmit={handleSubmit}>
           {isRegister && (
             <div className="auth-field">
-              <label htmlFor="fullName">Full name</label>
+              <label htmlFor="fullName">
+                Full name
+              </label>
 
               <input
                 id="fullName"
@@ -110,7 +113,9 @@ export default function AuthPage({ mode = "login" }) {
           )}
 
           <div className="auth-field">
-            <label htmlFor="email">Email address</label>
+            <label htmlFor="email">
+              Email address
+            </label>
 
             <input
               id="email"
@@ -126,7 +131,9 @@ export default function AuthPage({ mode = "login" }) {
           </div>
 
           <div className="auth-field">
-            <label htmlFor="password">Password</label>
+            <label htmlFor="password">
+              Password
+            </label>
 
             <input
               id="password"
@@ -179,7 +186,9 @@ export default function AuthPage({ mode = "login" }) {
           ) : (
             <>
               New to JobTrack-AI?{" "}
-              <Link to="/register">Create an account</Link>
+              <Link to="/register">
+                Create an account
+              </Link>
             </>
           )}
         </div>

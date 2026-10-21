@@ -1,4 +1,12 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    ForeignKey,
+    Boolean,
+)
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -41,13 +49,30 @@ class JobImport(Base):
     job_url = Column(String(500), nullable=True)
     source = Column(String(50), nullable=False, default="unknown")
     source_url = Column(String(500), nullable=True)
-    tracking_method = Column(String(50), nullable=False, default="browser_extension")
+    tracking_method = Column(
+        String(50),
+        nullable=False,
+        default="browser_extension",
+    )
     external_id = Column(String(255), nullable=True)
-    review_status = Column(String(30), nullable=False, default="pending", index=True)
+    review_status = Column(
+        String(30),
+        nullable=False,
+        default="pending",
+        index=True,
+    )
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
-    job_application_id = Column(Integer, ForeignKey("job_applications.id"), nullable=True)
+    job_application_id = Column(
+        Integer,
+        ForeignKey("job_applications.id"),
+        nullable=True,
+    )
 
 
 class User(Base):
@@ -59,3 +84,19 @@ class User(Base):
     full_name = Column(String(150), nullable=False, default="")
     is_active = Column(Integer, nullable=False, default=1)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Existing accounts remain verified by default.
+    # New registrations will explicitly set email_verified=False.
+    email_verified = Column(Boolean, nullable=False, default=True)
+
+    # Store a protected hash, never the raw verification code.
+    verification_code_hash = Column(String(64), nullable=True)
+    verification_expires_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    verification_attempts = Column(Integer, nullable=False, default=0)
+    verification_sent_at = Column(
+        DateTime(timezone=True),
+        nullable=True,
+    )

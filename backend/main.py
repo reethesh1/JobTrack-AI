@@ -76,6 +76,46 @@ with engine.begin() as connection:
         """)
     )
 
+        # Add email verification fields without invalidating existing accounts.
+    connection.execute(
+        text("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS email_verified
+            BOOLEAN NOT NULL DEFAULT TRUE
+        """)
+    )
+
+    connection.execute(
+        text("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS verification_code_hash
+            VARCHAR(64)
+        """)
+    )
+
+    connection.execute(
+        text("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS verification_expires_at
+            TIMESTAMP WITH TIME ZONE
+        """)
+    )
+
+    connection.execute(
+        text("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS verification_attempts
+            INTEGER NOT NULL DEFAULT 0
+        """)
+    )
+
+    connection.execute(
+        text("""
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS verification_sent_at
+            TIMESTAMP WITH TIME ZONE
+        """)
+    )
     # Add indexes to speed up user-specific queries.
     connection.execute(
         text("""
@@ -358,6 +398,7 @@ def delete_job(
 
 
 
+
 # Get the authenticated user's profile
 @app.get("/profile")
 def get_profile(
@@ -374,8 +415,8 @@ def get_profile(
 
         if profile is None:
             return {
-                "fullName": "",
-                "email": "",
+                "fullName": current_user.full_name or "",
+                "email": current_user.email or "",
                 "targetRole": "",
                 "location": "",
                 "linkedin": "",
@@ -383,16 +424,18 @@ def get_profile(
             }
 
         return {
-            "fullName": profile.full_name,
-            "email": profile.email,
-            "targetRole": profile.target_role,
-            "location": profile.location,
-            "linkedin": profile.linkedin,
-            "portfolio": profile.portfolio,
+            "fullName": profile.full_name or current_user.full_name or "",
+            "email": profile.email or current_user.email or "",
+            "targetRole": profile.target_role or "",
+            "location": profile.location or "",
+            "linkedin": profile.linkedin or "",
+            "portfolio": profile.portfolio or "",
         }
 
     finally:
         db.close()
+
+
 
 
 
