@@ -18,6 +18,7 @@ from app.models import JobApplication,UserProfile
 from app.models import User
 from app.schemas import JobCreate
 from app.import_routes import router as import_router
+from app.email_routes import router as email_router
 from sqlalchemy import text
 from app.auth import get_current_user
 
@@ -138,12 +139,11 @@ with engine.begin() as connection:
         """)
     )
 
-
-
 # Initialize FastAPI
 app = FastAPI(title="JobTrack AI")
 app.include_router(import_router)
 app.include_router(auth_router)
+app.include_router(email_router)
 # Request format for AI resume reviews
 class AIReviewRequest(BaseModel):
     resume_text: str = Field(..., min_length=1, max_length=100_000)

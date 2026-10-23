@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = "http://127.0.0.1:8000";
+const DEFAULT_API_URL ="https://jobtrack-ai-1-a4ie.onrender.com";
 
 async function getSettings() {
     const settings = await chrome.storage.local.get([

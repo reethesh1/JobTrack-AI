@@ -1,4 +1,4 @@
-const DEFAULT_API_URL = "http://127.0.0.1:8000";
+const DEFAULT_API_URL = "https://jobtrack-ai-1-a4ie.onrender.com";
 
 const form = document.getElementById("settings-form");
 const apiUrlInput = document.getElementById("api-url");
